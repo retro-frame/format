@@ -1,0 +1,237 @@
+
+===============================================================================
+ ____      _                   _____                         
+|  _ \ ___| |_ _ __ ___       |  ___| __ __ _ _ __ ___   ___ 
+| |_) / _ \ __| '__/ _ \ _____| |_ | '__/ _` | '_ ` _ \ / _ \
+|  _ <  __/ |_| | | (_) |_____|  _|| | | (_| | | | | | |  __/
+|_| \_\___|\__|_|  \___/      |_|  |_|  \__,_|_| |_| |_|\___|
+
+
+FORMAT - Retro-Frame Data Format Specifications
+
+VEE2B - Virtual Execution Environment #2 Binary (EE2B)
+
+Repository:  <http://source.retro-frame.net/format>
+File:        /spec/rfdf-vee2b.txt//
+Version:     01.00!00
+Compliance:  Retro-Frame 1.0
+License:     MIT
+
+Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+
+
+Change history
+-------------------------------------------------------------------------------
+
+2026-02-14 : 01.00!00 : Ingo
+
+  Draft.
+
+
+Contents
+-------------------------------------------------------------------------------
+
+1. INTRODUCTION
+   1.1  Background
+   1.2  Scope
+   1.3  References
+
+2. OVERVIEW
+
+3. BINARY DATA FORMAT
+   3.1  Characteristics
+   3.2  Syntax of version 00:00
+   3.3  Semantics
+
+
+
+1. INTRODUCTION
+===============================================================================
+
+
+1.1 Background
+-------------------------------------------------------------------------------
+
+[RETRO-FRAME] is a Retro-Endeavor that provides [COMMON DOCUMENTATION] (i.e.
+definitions, guidelines, templates and generic specifications) as well as
+topic-related specifications (covered by individual repositories like this
+one related to data format specifications) which are intended for use in
+retrospective programming and may be used as a whole or partially for other
+purposes.
+
+The Retro-Frame Data Format Specifications comprise binary and text data
+formats which may be implemented by a program (e.g. as file formats) and may
+be used by other specifications.
+
+
+1.2 Scope
+-------------------------------------------------------------------------------
+
+This document specifies the Virtual Execution Environment #2 Binary (VEE2B)
+data format of the type EE2B. It should be recognized by any Retro-Frame
+compliant VEE2 virtual machine.
+
+
+1.3 References
+-------------------------------------------------------------------------------
+
+[COMMON DOCUMENTATION]
+Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
+
+[IEEE 754]
+IEEE Standard for Floating-Point Arithmetic, IEEE, July 2019, see
+<https://ieeexplore.ieee.org/document/8766229>
+
+[RETRO-FRAME]
+Retro-Frame homepage, see <http://source.retro-frame.net/>.
+
+
+
+2. OVERVIEW
+===============================================================================
+
+The Virtual Execution Environment #2 (VEE2) is designed to run simple virtual
+binary code in a limited environment. The Virtual Execution Environment #2
+Binary (VEE2B) data format is intended to represent VEE2 code and data which
+may be loaded into and executed by a VEE2 virtual machine.
+
+
+
+3. BINARY DATA FORMAT
+===============================================================================
+
+
+3.1 Characteristics
+-------------------------------------------------------------------------------
+
+VEE2B is an optionally self-delimiting binary format.
+
+There are no restrictions on the format version.
+
+
+3.2 Syntax of version 00:00
+-------------------------------------------------------------------------------
+
+VEE2B_IDENTIFIER format:
+
+    2 BYTES  FORMAT_TYPE           : UINT-16BE = 0xEE2B
+    1 BYTE   FORMAT_VERSION_MAJOR  : UINT-8 = 0x00
+    1 BYTE   FORMAT_VERSION_MINOR  : UINT-8 = 0x00
+
+VEE2B_HEADER format:
+
+    1 BYTE   HEADER_TAG                     : UINT-8
+             MASK 0x0F FORMAT_TYPE          : = 0
+             MASK 0x10 BIG_ENDIAN_INT_FLAG
+             MASK 0x20 BIG_ENDIAN_FLT_FLAG
+             MASK 0x40 RESERVED_FLAG        : = 0 ; ignore on read
+             MASK 0x80 DATA_SEG_FLAG
+    4 BYTES  CODE_SEG_LIMIT                 : UINT-32BE = codeSegSize - 1
+  [ DATA_SEG_FLAG ]
+    4 BYTES  DATA_SEG_LIMIT                 : UINT-32BE = dataSegSize - 1
+
+VEE2B_CHUNK format:
+
+    2          BYTES  CHUNK_TAG                  : UINT-16BE
+                      MASK 0x8000 CODE_FLAG
+  [ CODE_FLAG ]
+                      MASK 0x7FFF CODE_LIMIT     : = codeSize - 1
+  [ !CODE_FLAG ]
+                      MASK 0x4000 DATA_FLAG
+  [ DATA_FLAG ]
+                      MASK 0x3FFF DATA_LIMIT     : = dataSize - 1
+  [ !DATA_FLAG ]
+                      MASK 0x2000 CHUNK_FLAG
+  [ CHUNK_FLAG ]
+                      MASK 0x1FFF CHUNK_LIMIT    : = chunkSize - 1
+  [ !CHUNK_FLAG ]
+                      MASK 0x1FFE RESERVED_MASK  : = 0x0000
+                      MASK 0x0001 ZERO_FLAG      : = 0x1000
+  [ CODE_FLAG ]
+    codeSize   BYTES  CODE                       ; next chunk of code segment
+  [ DATA_FLAG ]
+    dataSize   BYTES  DATA                       ; next chunk of data segment
+  [ CHUNK_FLAG ]
+    chunkSize  BYTES  RESERVED_CHUNK             ; unspecified (ignore on read)
+  [ ZERO_FLAG ]
+    4          BYTES  ZERO_LIMIT                 ; UINT-32BE = zeroDataSize - 1
+
+VEE2B_END format:
+
+    2  BYTES  END_TAG  : UINT-16BE = 0
+
+VEE2B format:
+
+    4  BYTES  VEE2B_IDENTIFIER
+    ?  BYTES  VEE2B_HEADER
+    ?  BYTES  VEE2B_CHUNK
+              ...
+    ?  BYTES  VEE2B_CHUNK
+  [ 1  BYTE   VEE2B_END ]
+
+
+3.3 Semantics
+-------------------------------------------------------------------------------
+
+The header of a VEE2B data format starts with a HEADER_TAG which specifies the
+number formats and the presence of subsequent header values.
+
+If FORMAT_TYPE is zero, the VEE2 virtual machine should expect negative integer
+values to be represented in the two's complement and floating point numbers to
+be represented in the [IEEE 754] format (considering the endianness indicated
+by BIG_ENDIAN_INT_FLAG and BIG_ENDIAN_FLT_FLAG). However, future versions of
+VEE2 may provide different representations. Thus, the loader should fail on
+load if FORMAT_TYPE is not supported. In this case, upward compatibility is
+considered still maintained in terms of the data format but in this case not in
+terms of the virtual machine. In a similar way, the virtual machine may emulate
+the endianness of the binary if it does not match the native endianness of the
+virtual machine or load may fail if not supported.
+
+Note that no other compatibility information is provided by the header. Thus,
+in order to ensure compatibility of the virtual machine including APIs at
+startup, the program should implement appropriate queries or asserts.
+
+RESERVED_FLAG must always be set to zero on write but ignored on read.
+
+After the tag, CODE_SEG_LIMIT is provided in order to determine the code
+segment size and optionally DATA_SEG_LIMIT to determine the global data segment
+size if DATA_SEG_FLAG was set to nonzero.
+
+After the header, an arbitrary number of chunks may be present. Each chunk
+begins with a two-bytes CHUNK_TAG which is never zero. Depending on the highest
+nonzero bit of the tag, the chunk contains the next part of the code segment,
+the data segment or an unspecified chunk which must never be written and
+ignored on read. The number of bytes of those three types of chunk is encoded
+by the lower bits after the first nonzero bit. If the first three high bits are
+zero, the tag must have the value 0x0001 and a four bytes value is expected
+which indicates an amount of bytes within the data segment which is set to zero
+rather than loaded from a data chunk. Any bytes which would exceed the segment
+boundaries must be ignored. On the other hand, if not all bytes of a segment
+are loaded, the remaining bytes must be set to zero.
+
+If a two-byte value zero is present rather than a CHUNK_TAG, this is considered
+the end mark of the VEE2B stream. In this case, the format is self delimiting.
+However, if the stream contains further bytes (e.g. the end of a stream has not
+been reached), another data format shall be expected. If multiple VEE2B formats
+appear, all should be loaded an run in parallel if supported by the virtual
+machine (otherwise, the behaviour is implementation-dependent).

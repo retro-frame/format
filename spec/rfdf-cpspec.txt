@@ -1,0 +1,469 @@
+
+===============================================================================
+ ____      _                   _____                         
+|  _ \ ___| |_ _ __ ___       |  ___| __ __ _ _ __ ___   ___ 
+| |_) / _ \ __| '__/ _ \ _____| |_ | '__/ _` | '_ ` _ \ / _ \
+|  _ <  __/ |_| | | (_) |_____|  _|| | | (_| | | | | | |  __/
+|_| \_\___|\__|_|  \___/      |_|  |_|  \__,_|_| |_| |_|\___|
+
+
+FORMAT - Retro-Frame Data Format Specifications
+
+CPSPEC - Codepage Specifications ("CP-SPEC")
+
+Repository:  <http://source.retro-frame.net/format>
+File:        /spec/rfdf-cpspec.txt//
+Version:     01.00!00
+Compliance:  Retro-Frame 1.0
+License:     MIT
+
+Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+
+
+Change history
+-------------------------------------------------------------------------------
+
+2026-02-14 : 01.00!00 : Ingo
+
+  Draft.
+
+
+Contents
+-------------------------------------------------------------------------------
+
+1. INTRODUCTION
+   1.1  Background
+   1.2  Scope
+   1.3  References
+
+2. OVERVIEW
+
+3. TEXT DATA FORMAT
+   3.1  Characteristics and character processing
+   3.2  Syntax of version 1.0
+   3.3  Semantics
+
+
+
+1. INTRODUCTION
+===============================================================================
+
+
+1.1 Background
+-------------------------------------------------------------------------------
+
+[RETRO-FRAME] is a Retro-Endeavor that provides [COMMON DOCUMENTATION] (i.e.
+definitions, guidelines, templates and generic specifications) as well as
+topic-related specifications (covered by individual repositories like this
+one related to data format specifications) which are intended for use in
+retrospective programming and may be used as a whole or partially for other
+purposes.
+
+The Retro-Frame Data Format Specifications comprise binary and text data
+formats which may be implemented by a program (e.g. as file formats) and may
+be used by other specifications.
+
+
+1.2 Scope
+-------------------------------------------------------------------------------
+
+This document specifies the Codepage Specifications (CPSPEC) data format of the
+type "CP-SPEC" which may be used to specify one or more codepages.
+
+
+1.3 References
+-------------------------------------------------------------------------------
+
+[COMMON DOCUMENTATION]
+Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
+
+[RETRO-FRAME]
+Retro-Frame homepage, see <http://source.retro-frame.net/>.
+
+[UNICODE]
+The Unicode(R) Standard, The Unicode Consortium, for latest version see
+<https://www.unicode.org/versions/latest/>.
+
+
+
+2. OVERVIEW
+===============================================================================
+
+In modern world, the leading character set is [UNICODE], which is encoded by a
+set of standardized UTF-based character encodings (note that Retro-Frame
+characters are a superset of Unicode but with a different character encoding
+scheme).
+
+However, in earlier times, multiple character sets and character encodings
+existed.
+
+While most of those character sets were encoded by a single byte (and thus
+consisted of no more than 256 codepoints), some character sets were represented
+by a single byte or a sequence of two bytes (e.g. Shift JIS). In addition, some
+statful encodings existed which used control characters like SHIFT-OUT and
+SHIFT-IN to switch between character sets.
+
+As it seems infeasible to implement all of the possible (often vendor-specific)
+codepages, the CPSPEC data format is intended to define one or multiple
+codepages by a text format which can be translated to a binary codepage (CP)
+format (see /spec/rfdf-cp.txt//).
+
+
+
+3. TEXT DATA FORMAT
+===============================================================================
+
+
+3.1 Characteristics and character processing
+-------------------------------------------------------------------------------
+
+CPSPEC is a not self-delimiting text format using the MINIMAL CHARACTER SET.
+
+On input, the NUL and DEL control characters should be ignored while all other
+control characters (including HT) shall be considered invalid. On output, no
+control characters other than line breaks shall be written.
+
+No escaping is recognized.
+
+While spaces, line breaks and comments (i.e. a semicolon ";" followed by an
+arbitrary sequence of characters up to the next LF) are considered whitespace,
+only a few type of tokens exist:
+
+- <cpspec-value> is a hexadecimal value which either represents a code within
+  the current block (i.e. an offset in which case the range must be 00..FF) or
+  a mapped Retro-Frame character codepoint (in this case, the range must be
+  000000..126FC1, excluding the values 00DD00..00DFFF, 00FDD0..00FDEF and
+  XXFFFE..XXFFFF for XX = 00..10). Leading zeros are ignored and there is no
+  length constraint.
+
+- <cpspec-number> is a decimal value which may be used as an identifier and
+  must be in the range 1..65534. Leading zeros are ignored and there is no
+  length constraint.
+
+- <cpspec-name> is a sequence of uppercase letters, digits and the hyphen "-"
+  which may be used as an identifier and must start with a letter. Hyphens must
+  be enclosed by non-hyphens. The length is limited to 39 characters.
+
+- <cpspec-domain> follows the same rules as <cpspec-name> but is limited to 8
+  characters.
+
+- A symbol is represented by a single non-alphanumeric character, except in the
+  following cases (no whitespace is allowed between duplicated characters which
+  represent a single token):
+
+  - The equals sign '=' may occur duplicated (i.e. "==") to indicate a special
+    mode of a mapping references.
+
+  - The full stop '.' may occur duplicated (i.e. "..") to indicate a value
+    range rather than a codepoint which shall be ignored.
+
+  - The less-than sign '<' may occur duplicated (i.e. "<<") to indicate a
+    shift-in rather than a shift-out backward reference.
+
+Two consecutive <cpspec-item> tokens, range tokens ".." or <cpspec-value>
+tokens in a codepoint sequence must be separated by whitespace. In any other
+case, whitespace between tokens, if allowed, are optional.
+
+While the character set shall always be validated (i.e. all characters which
+are not part of the MINIMAL CHARACTER SET are considered invalid), the syntax
+may be ignored in the following cases:
+
+- If an identifier matches <cpspec-identifier-sequence> at a comma "," and if
+  no further identifier is expected anymore, the program may skip to the next
+  less-than sign "<" or left parenthesis "(".
+
+- A block may be skipped up to the next closing right parenthesis ")". Whenever
+  a left parenthesis "(" appears in the block, the  next right parenthesis does
+  not close the block but matches the left parenthesis.
+
+There are no restrictions on the format version.
+
+
+3.2 Syntax of version 1.0
+-------------------------------------------------------------------------------
+
+<cpspec-format-identifier>:
+
+  "CP-SPEC/1.0"
+
+<cpspec-ws>:
+
+  ( ( WS )* | [ WS ]* [ ";" [ ! | WS ]* ] LB )*
+
+<cpspec-value>:
+
+  X [_X ]*
+
+<cpspec-number>:
+
+  9 [_9 ]*
+
+<cpspec-name>:
+
+  A [ [_"-" ] (_9 |_A ) ]*
+
+<cpspec-identifier>:
+
+  <cpspec-number> | <cpspec-name>
+
+<cpspec-domain>:
+
+  <cpspec-name>
+
+<cpspec-offset>:
+
+  <cpspec-value>_":"
+
+<cpspec-value-list-not-invertible>:
+
+  <cpspec-ws> <cpspec-value>
+
+<cpspec-value-list-invertible>:
+
+  [ <cpspec-ws> ] "+" [ <cpspec-ws> ] <cpspec-value>
+
+<cpspec-value-sequence>:
+
+  "(" [ <cpspec-ws> ] <cpspec-value>
+  [ <cpspec-value-list-not-invertible> | <cpspec-value-list-invertible> ]*
+  [ <cpspec-ws> ] ")"
+
+<cpspec-value-range>:
+
+  <cpspec-value>_".." [ <cpspec-ws> ".." ]*_<cpspec-value>
+
+<cpspec-symbol>:
+
+  "/" | "-" | "."
+
+<cpspec-mapping>:
+
+  <cpspec-value>
+  | <cpspec-value-sequence>
+  | <cpspec-value-range>
+  | <cpspec-symbol>
+  | "<<"
+
+<cpspec-mapping-ref>:
+
+  "=" [_"=" ] [ <cpspec-ws> ] ( <cpspec-identifier> | "?" | <cpspec-symbol> )
+
+<cpspec-multibyte-ref>:
+
+  "*" [ <cpspec-ws> ] ( <cpspec-identifier> | <cpspec-symbol> )
+
+<cpspec-shift-forward-ref>:
+
+  ">" [ <cpspec-ws> ] ( <cpspec-identifier> | <cpspec-symbol> )
+
+<cpspec-shift-backward-ref>:
+
+  "<" [ <cpspec-ws> ] <cpspec-name>
+
+<cpspec-shift-ref>:
+
+  <cpspec-shift-forward-ref> | <cpspec-shift-backward-ref>
+
+<cpspec-ref>:
+
+  <cpspec-mapping-ref> | <cpspec-multibyte-ref> | <cpspec-shift-ref>
+
+<cpspec-offset>:
+
+  <cpspec-value>_":" [ <cpspec-ws> ]
+
+<cpspec-item>:
+
+  [ <cpspec-offset> ] ( <cpspec-mapping> | <cpspec-ref> | "," )
+
+<cpspec-block>:
+
+  "(" [ <cpspec-ws> ] <cpspec-item> [ <cpspec-ws> <cpspec-item> ]*
+  [ <cpspec-ws> ] ")"
+
+<cpspec-identifier-sequence>:
+
+  ( <cpspec-identifier> | "?" )
+  [ [ <cpspec-ws> ] "," [ <cpspec-ws> ] ( <cpspec-identifier> | "?" ) ]*
+  [ [ <cpspec-ws> ] "<" [ <cpspec-ws> ] <cpspec-name> ]
+
+<cpspec-table-definition>:
+
+ [ <cpspec-ws> ] <cpspec-identifier-sequence> [ <cpspec-ws> ] <cpspec-block>
+
+<cpspec-header>:
+
+  [ ":"_[_LB_]_<cpspec-domain>_[_<rf-skip-element>_]*_]_(_LB |_"??" )
+
+<cpspec-body>:
+
+  [ <cpspec-table-definition> ]* [ <cpspec-ws> ]
+
+<cpspec>:
+
+  [ <cpspec-format-identifier>_<cpspec-header>_] <cpspec-body>
+
+
+3.3 Semantics
+-------------------------------------------------------------------------------
+
+A CPSPEC data format is a sequence of codepage table definitions, selectable by
+an identifier, which represent one or multiple codepages. One codepage consists
+of one or multiple codepage tables.
+
+A <cpspec-table-definition> consists of a <cpspec-identifier-sequence>, which
+determines the matching identifiers of that codepage table by a comma-separated
+list, an optional shift-out backward identifier <cpspec-name> after a less-than
+sign "<" (if effective, see below), and a <cpspec-block>, which specifies the
+256 codes of that codepage table.
+
+When a <cpspec-block> is processed, an implicit offset, initialized by zero, is
+used to represent the current code within that block. If a <cpspec-offset> is
+present at the beginning of a <cpspec-item>, the offset is instantly set to the
+<cpspec-value>. Each <cpspec-item> is assigned to the code represented by the
+current offset and, unless it is a <cpspec-mapping-ref>, implicitly increments
+the current offset by one.
+
+This may lead temporarily to an offset of above FF and an error must be raised
+if a subsequent <cpspec-item> occurs which does not explicitly sets the offset
+to a value back in the range 00..FF.
+
+During processing of a CPSPEC data format, all codepoints of a codepage remain
+unspecified until a <cpspec-mapping> or a <cpspec-ref> specifies the codepoint
+(note that a comma has no effect on the codepoint specification at all but
+increments the offset). Subsequent specifications of the same codepoint
+(either within the current block or by a <cpspec-mapping-ref>) will not change
+a given specification anymore. After processing, all codepoints left
+unspecified are considered invalid.
+
+A <cpspec-mapping> may specify a codepoint as follows:
+
+- A <cpspec-value> represents a single mapped codepoint.
+
+- A range of consecutive codepoints <start-value>..<end-value> in which case
+  <end-value> must be greater than <start-value>. Note that multiple range
+  tokens ".." may occur but there must be no whitespace between <start-value>
+  and the first range token as well as between the final range token and
+  <end-value> while whitespace is required between the range tokens itself.
+
+- A sequence of one up to 16 <cpspec-value>, enclosed in parenthesis ("( "and
+  ")"), which must be separated by whitespace. Such a codepoint sequence is not
+  invertible (i.e. such a codepoint sequence will never be translated back on
+  encoding). As a special case, a single codepoint enclosed in parenthesis is
+  equivalent to a single mapped codepoint (see above) on decoding but will not
+  be mapped back on encoding.
+
+- A sequence of one up to 16 <cpspec-value>, enclosed in parenthesis ("( "and
+  ")") which are all separated by a plus sign ("+"). Such a codepoint sequence
+  is invertible (i.e. such a codepoint sequence may be translated back on
+  encoding).
+
+- A solidus "/", in which case the code is mapped to itself (i.e. the codepoint
+  of equal value).
+
+- A hyphen "-", in which case the code is considered invalid on input.
+
+- A full stop ".", in which case the code shall be ignored on input.
+
+- A doubled less-than sign "<<", which represents a shift-in (i.e. a permanent
+  switch back to the codepage from which the last shift-out originated; if no
+  such codepage exists or if no shift-out was performed after the last shift-
+  in, the shift-in has no effect).
+
+A <cpspec-ref> may specify a codepoint as follows:
+
+- A <cpspec-mapping-ref> (i.e. a single "=" or double "==" equals sign,
+  followed by an identifier, a solidus "/", a hypen "-" or a full stop ".")
+  specifies all (unspecified) codepoints starting at the current offset by the
+  codepage referenced by the identifier. In this context, a solidus represents
+  a codepage table which maps all codes to itself (i.e. Latin-1), the hyphen a
+  codepage table where all codes are invalid and the full stop a codepage table
+  where all codes are ignored.
+
+  If more than one <cpspec-mapping-ref> is given in a block, each reference
+  must start at an offset greater than the previous reference, if given, and
+  will cut off the previous one so there will be no overlap (e.g. "(=A F0:=B)"
+  will map the codes 00 through EF according to codepage table A and the codes
+  F0 through FF according to codepage table B).
+
+  If a single equals sign is given, all codes of the referenced codepage table
+  are taken from the start of that table (e.g. "(FF: = /)" maps the code FF to
+  codepoint 0000 rather than codepoint 00FF). However, if a double equals sign
+  is given, all codepoints of the referenced codepage are taken from the same
+  offset (e.g. "(FF: == /)" maps the code FF to codepoint 00FF rather than
+  codepoint 0000).
+
+  All occurences of <cpspec-mapping-ref> in a block are evaluated after the
+  block has been processed (e.g. "(=/ 4)" maps code 00 to codepoint 0000 rather
+  than codepoint 0004 which will have no effect).
+
+- A <cpspec-multibyte-ref> (i.e. an asterisk "*", followed by an identifier)
+  specifies the code at the current offset as a prefix for a subsequent code
+  (i.e. a multibyte encoding) which is mapped according the codepage table
+  referenced by the identifier (see below).
+
+- A <cpspec-shift-ref> (i.e. greater-than sign ">", followed by a <cpspec-
+  identifier>, for foward reference, or a less-than sign "<", followed by a
+  <cpspec-name>, for backward reference) specifies the code at the current
+  offset as a permanent switch to another codepage table (shift-out). While a
+  forward reference is expected on further processing (see below), a backward
+  reference must match a <cpspec-table-definition> of a codepage table which
+  has already been processed.
+
+  A shift-out backward identifier in a <cpspec-identifier-sequence> is only
+  effective if <cpspec-block> actually defines a codepage table which is only
+  the case if an identifier which did not originate from a <cpspec-mapping-ref>
+  matches (a <cpspec-mapping-ref> is used to specify another codepage table
+  rather than defining a new one). Shift-out backward identifiers must start
+  with a letter (i.e. be a <cpspec-name>) and are in a different namespace than
+  the other identifiers. Multiple defined codepage tables may have the same
+  shift-out backward identifier in <cpspec-identifier-sequence>. A shift-out
+  backward reference matches the most recent shift-out backward identifier,
+  starting from and possibly including the <cpspec-table-definition> in which
+  the shift-out backward reference appears.
+
+  Examples (assume A is the initial codepage identifier):
+
+    A < A (> B)  ; A IS EFFECTIVE SHIFT-OUT BACKWARD IDENTIFIER
+    B < B (* C)  ; B IS EFFECTIVE SHIFT-OUT BACKWARD IDENTIFIER
+    C < A (= D)  ; A IS EFFECTIVE SHIFT-OUT BACKWARD IDENTIFIER
+    D < A (= G)  ; A IS NO EFFECTIVE SHIFT-OUT BACKWARD IDENTIFIER
+    G (< A)      ; SHIFT-OUT BACKWARD REFERENCE MATCHES BLOCK (= D)
+
+If a <cpspec-ref> other than a shift-out backward reference with an identifier
+is given, the next occurence of the referenced codepage table is looked up
+(which may or may not have the same identifier like the current codepage),
+either in the current CPSPEC data format or, if a <cpspec-domain> is given, in
+a subsequent CPSPEC data format of that domain (this feature may be considered
+as a sequence of includes). Each processed CPSPEC data format must have at
+least one matching codepage table. The maximum number of such identifiers is
+319 (references to a <cpspec-symbol> and shift-out backward references are not
+counted while two equal identifiers matching different codepage tables are
+considered different identifiers).
+
+A question mark "?" in a <cpspec-identifier-sequence> matches any identifier.
+If used within a <cpspec-mapping-ref>, the symbol is replaced by the identifier
+which matched the block (e.g. if "B" matched "A, B, C (=?)", the question mark
+represents "B"). Question marks may even appear in both cases which may be used
+to override specific codes by a general rule (e.g. "?(0 ==?)" will have no
+effect other than ensuring that code 00 is always mapped to codepoint 0000).

@@ -1,0 +1,336 @@
+
+===============================================================================
+ ____      _                   _____                         
+|  _ \ ___| |_ _ __ ___       |  ___| __ __ _ _ __ ___   ___ 
+| |_) / _ \ __| '__/ _ \ _____| |_ | '__/ _` | '_ ` _ \ / _ \
+|  _ <  __/ |_| | | (_) |_____|  _|| | | (_| | | | | | |  __/
+|_| \_\___|\__|_|  \___/      |_|  |_|  \__,_|_| |_| |_|\___|
+
+
+FORMAT - Retro-Frame Data Format Specifications
+
+RFFF - Retro-Frame Magic Prefix (5246 / "RFFF")
+
+Repository:  <http://source.retro-frame.net/format>
+File:        /spec/rfdf-rfff.txt//
+Version:     01.00!00
+Compliance:  Retro-Frame 1.0
+License:     MIT
+
+Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+
+
+Change history
+-------------------------------------------------------------------------------
+
+2026-02-14 : 01.00!00 : Ingo
+
+  Draft.
+
+
+Contents
+-------------------------------------------------------------------------------
+
+1. INTRODUCTION
+   1.1  Background
+   1.2  Scope
+   1.3  References
+
+2. OVERVIEW
+
+3. BINARY DATA FORMAT
+   3.1  Characteristics
+   3.2  Syntax of version 46:46
+   3.3  Semantics
+
+4. TEXT DATA FORMAT
+   4.1  Characteristics and character processing
+   4.2  Syntax of version 1.0
+   4.3  Syntax of version 1.1
+   4.4  Semantics
+   4.5  Security considerations
+
+
+
+1. INTRODUCTION
+===============================================================================
+
+
+1.1 Background
+-------------------------------------------------------------------------------
+
+[RETRO-FRAME] is a Retro-Endeavor that provides [COMMON DOCUMENTATION] (i.e.
+definitions, guidelines, templates and generic specifications) as well as
+topic-related specifications (covered by individual repositories like this
+one related to data format specifications) which are intended for use in
+retrospective programming and may be used as a whole or partially for other
+purposes.
+
+The Retro-Frame Data Format Specifications comprise binary and text data
+formats which may be implemented by a program (e.g. as file formats) and may
+be used by other specifications.
+
+
+1.2 Scope
+-------------------------------------------------------------------------------
+
+This document specifies the Magic Prefix data format RFFF of the type 5246 in
+binary mode respectively "RFFF" in text mode which should be recognized by any
+Retro-Frame compliant program when data is read from or written to files.
+
+In text mode, from minor version 1, the Magic Prefix format provides references
+to CP files which are used for character decoding (see /spec/rfdf-cp.txt//).
+
+
+1.3 References
+-------------------------------------------------------------------------------
+
+[COMMON DOCUMENTATION]
+Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
+
+[RETRO-FRAME]
+Retro-Frame homepage, see <http://source.retro-frame.net/>.
+
+
+
+2. OVERVIEW
+===============================================================================
+
+The hexadecimal byte sequence 52 46 46 46, which is represented as "RFFF" in
+ASCII character encoding, is used in binary mode as well as the character
+sequence "RFFF/" in text mode as a magic prefix for files in order to indicate
+a Retro-Frame DATA FORMAT (Retro-Frame File Format).
+
+In text mode, the magix prefix may also be used to implicitly identify - to
+a certain extent - the CHARACTER ENCODING and the CHARACTER DOMAIN. From
+version 1.1, character decoding may be switched to an arbitrary CODEPAGE which
+is referenced by the name of a CP file (see /spec/rfdf-cp.txt//).
+
+The actual DATA FORMAT must immediately follow the prefix.
+
+
+
+3. BINARY DATA FORMAT
+===============================================================================
+
+
+3.1 Characteristics
+-------------------------------------------------------------------------------
+
+In binary mode, the Magic Prefix is considered a binary format. The format is
+not self-delimiting.
+
+The only valid format version is 46:46.
+
+
+3.2 Syntax of version 46:46
+-------------------------------------------------------------------------------
+
+RFFF_IDENTIFIER:
+
+    2 BYTES  FORMAT_TYPE           : UINT-16BE = 0x5246
+    1 BYTE   FORMAT_VERSION_MAJOR  : UINT-8 = 0x46
+    1 BYTE   FORMAT_VERSION_MINOR  : UINT-8 = 0x46
+
+RFFF_BODY:
+
+    ? BYTES  BINARY_FORMAT  ; Retro-Frame binary data format expected
+
+RFFF:
+
+    4 BYTES  RFFF_IDENTIFIER
+    ? BYTES  RFFF_BODY
+
+
+3.3 Semantics
+-------------------------------------------------------------------------------
+
+The Magic Prefix has no effect by itself other than expecting a Retro-Frame
+binary DATA FORMAT. It may appear once at the beginning of a file.
+
+Note that the distinction between a binary Magix Prefix and a text Magix Prefix
+is made at the latest by the fifth byte (i.e. the first byte of the RFFF_BODY
+in case of a binary data format) which is never 0x2F for a binary data format.
+
+
+
+4. TEXT DATA FORMAT
+===============================================================================
+
+
+4.1 Characteristics and character processing
+-------------------------------------------------------------------------------
+
+In text mode, the Magic Prefix is considered a text format. The format is not
+self-delimiting.
+
+Although the Magic Prefix itself only uses the MINIMAL CHARACTER SET, the
+defined character set is unlimited (i.e. all characters are allowed) but may
+become restricted by the actual DATA FORMAT.
+
+The processing of control characters is not subject to the file format
+specification. However, the following cases should be considered:
+
+- Control characters which indicate the end of a file may cause an EOF even if
+  further characters are actually present in the file (which should be ignored
+  in this case).
+
+- Line break characters or character sequences shall be treatened as LB.
+
+- Whitespace characters other than SP and LB may be treatened like SP if
+  whitespace is allowed.
+
+- Other control characters may be processed according their definition, be
+  ignored, raise an error or be passed to data format processing.
+
+The format major version is retricted to 1. There are no restrictions on the
+format minor version.
+
+
+4.2 Syntax of version 1.0
+-------------------------------------------------------------------------------
+
+<rfff-format-identifier>:
+
+  "RFFF/1.0"
+
+<rfff-header>:
+
+  [ <rf-skip-element>_]*_"?"
+
+<rfff-body>:
+
+  TEXT-FORMAT  ; Retro-Frame text data format expected
+
+<rfff>:
+
+  <rfff-format-identifier>_<rfff-header>_[_LB_]<rfff-body>
+
+
+4.3 Syntax of version 1.1
+-------------------------------------------------------------------------------
+
+<rfff-format-identifier>:
+
+  "RFFF/1.1"
+
+<rfff-codepage-file-name>:
+
+  A [ [_"-" ] (_9 |_A ) ]*
+
+<rfff-header>:
+
+  [ ":"_[_LB_]_[_<rfff-codepage-file-name>_]_[_<rf-skip-element>_]*_]_"?"
+
+<rfff-body>:
+
+  TEXT-FORMAT  ; Retro-Frame text data format expected
+
+<rfff>:
+
+  <rfff-format-identifier>_<rfff-header>_[_LB_]<rfff-body>
+
+
+4.4 Semantics
+-------------------------------------------------------------------------------
+
+The Magic Prefix has no effect by itself other than expecting a Retro-Frame
+text DATA FORMAT. It may appear once at the beginning of a file.
+
+The Magic Prefix may be used to determine the CHARACTER ENCODING respectively
+the CHARACTER DOMAIN implicitly if it has not been determined already by
+explicit selection, a Byte Order Mark (see /doc/rf-format.txt//) or a previous
+Magix Prefix. The following examples show how the string "RFFF/" would be
+encoded by a specific CHARACTER ENCODING respectively CHARACTER DOMAIN:
+
+  - 00 00 00 52 00 00 00 46 00 00 00 46 00 00 00 46 00 00 00 2F indicates
+    UTF-32BE encoding
+
+  - 52 00 00 00 46 00 00 00 46 00 00 00 46 00 00 00 2F 00 00 00 indicates
+    UTF-32LE encoding
+
+  - 00 52 00 46 00 46 00 46 00 2F indicates UTF-16BE encoding
+
+  - 52 00 46 00 46 00 46 00 2F 00 indicates UTF-16LE encoding
+
+  - 52 46 46 46 2F indicates a codepage in the ASCII domain
+
+    Note that the distinction between a binary Magic Prefix and a text Magic
+    Prefix in the ASCII domain is made by the fifth byte which is always 0x2F
+    for a text data format but never for a binary data format.
+
+  - D9 C6 C6 C6 61 indicates a codepage in the EBCDIC domain
+
+  - 37 2B 2B 2B 15 indicates the ZX80 codepage
+
+  - 37 2B 2B 2B 18 indicates the ZX81 codepage
+
+Other CHARACTER ENCODINGS or CHARACTER DOMAINS may be assumed in the same way.
+If a CHARACTER DOMAIN is recognized, the CODEPOINTS of the digits, uppercase
+letters, the solidus ('/'), the full stop ('.'), the question mark ('?'), the
+colon (':') and the hyphen ('-') should become known in order to process the
+version number and <rfff-codepage-file-name>, if given, in which case the
+exact CODEPAGE becomes known by means of a CP file (see below).
+
+If a question mark ('?') immediately follows <rfff-format-identifier>, the
+Magix Prefix does not contain a header.
+
+If <rfff-codepage-file-name> is present, it should consist of no more than
+eight characters and represents the name of a CP file (see /spec/rfdf-cp.txt//)
+by appending the filename extension ".CP". The CP file may be searched in one
+or more directories in a system-dependent or Retro-Frame specified manner. If
+a matching valid CP file is found, character encoding shall be switched to the
+CODEPAGE specified by this file immediately after the colon (':') or question
+mark ('?') which terminated <rfff-codepage-file-name>. Note that such switches
+may occur multiple times if more than one Magic Prefix is present.
+
+Any unknown part of a header shall be ignored in order to ensure forward
+compatibility.
+
+
+4.5 Security considerations
+-------------------------------------------------------------------------------
+
+The <rfff-codepage-file-name> feature, if applied, can pose severe security
+risks, particularly:
+
+- If the attacker is able to control the effective CP file (e.g. by modifying
+  a local unprotected CP file), decoding may result in unexpected and harmful
+  effects.
+
+  Example:
+
+  If a file with the contents "RFFF/1.1:OEM-850?GOOD" is given in ASCII
+  encoding and the attacker is able to inject a file "OEM-850.CP" which maps
+  each ASCII code to the corresponding codepoint except that code 47 is mapped
+  to codepoint 0042 and code 4F is mapped to codepoint 0041, the resulting
+  <rfff-body> becomes "BAAD".
+
+- Codepages may be used to bypass content filters or anti-malware protection if
+  an unusual or even individual character encoding is used.
+
+  Example:
+
+  The <rfff-body> of a file with the contents "RFFF/1.1:ROT13?Znyvpvbhf" is, if
+  a CP file "ROT13.CP" that performs ROT-13 encoding is present, decoded to
+  "Malicious".

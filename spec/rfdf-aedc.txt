@@ -1,0 +1,467 @@
+
+===============================================================================
+ ____      _                   _____                         
+|  _ \ ___| |_ _ __ ___       |  ___| __ __ _ _ __ ___   ___ 
+| |_) / _ \ __| '__/ _ \ _____| |_ | '__/ _` | '_ ` _ \ / _ \
+|  _ <  __/ |_| | | (_) |_____|  _|| | | (_| | | | | | |  __/
+|_| \_\___|\__|_|  \___/      |_|  |_|  \__,_|_| |_| |_|\___|
+
+
+FORMAT - Retro-Frame Data Format Specifications
+
+AEDC - Asymmetrically Encrypted Data Collection (AEDC)
+
+Repository:  <http://source.retro-frame.net/format>
+File:        /spec/rfdf-aedc.txt//
+Version:     01.00!00
+Compliance:  Retro-Frame 1.0
+License:     MIT
+
+Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+
+
+Change history
+-------------------------------------------------------------------------------
+
+2026-02-14 : 01.00!00 : Ingo
+
+  Draft.
+
+
+Contents
+-------------------------------------------------------------------------------
+
+1. INTRODUCTION
+   1.1  Background
+   1.2  Scope
+   1.3  References
+
+2. OVERVIEW
+
+3. BINARY DATA FORMAT
+   3.1  Characteristics
+   3.2  Cryptographic algorithms
+   3.3  Syntax of version 00:00
+   3.4  Semantics
+   3.5  Security considerations
+
+
+
+1. INTRODUCTION
+===============================================================================
+
+
+1.1 Background
+-------------------------------------------------------------------------------
+
+[RETRO-FRAME] is a Retro-Endeavor that provides [COMMON DOCUMENTATION] (i.e.
+definitions, guidelines, templates and generic specifications) as well as
+topic-related specifications (covered by individual repositories like this
+one related to data format specifications) which are intended for use in
+retrospective programming and may be used as a whole or partially for other
+purposes.
+
+The Retro-Frame Data Format Specifications comprise binary and text data
+formats which may be implemented by a program (e.g. as file formats) and may
+be used by other specifications.
+
+
+1.2 Scope
+-------------------------------------------------------------------------------
+
+This document specifies the Asymmetrically Encrypted Data Collection (AEDC)
+data format of the type AEDC which may be used to add encrypted streams using
+one or more individual asymmetric file keys.
+
+The actual format of the stream data is not subject to the Asymmetrically
+Encrypted Data Collection (AEDC) format.
+
+
+1.3 References
+-------------------------------------------------------------------------------
+
+[COMMON DOCUMENTATION]
+Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
+
+[DEFLATE]
+RFC: 1951 - DEFLATE Compressed Data Format Specification version 1.3, see
+<https://datatracker.ietf.org/doc/html/rfc1951>.
+
+[RETRO-FRAME]
+Retro-Frame homepage, see <http://source.retro-frame.net/>.
+
+
+
+2. OVERVIEW
+===============================================================================
+
+The Asymmetrically Encrypted Data Collection (AEDC) format is intended to
+protect collected data in insecure environments. While using efficient
+symmetric key encryption respective message authentication, the secret key
+material for each session is generated randomly and stored using public key
+cryptography. Thus, no secret (except from the session-related material) is
+required in order to protect the data.
+
+Within a session, an unlimited number of compressed, authenticated and
+encrypted Retro-Frame DATA FORMAT streams may be stored.
+
+The public key material is stored in the format header. For each such header,
+up to 16 keys (called the 'RECEIVER KEYS') may be assigned.
+
+Decryption may be performed in a secure environment using a secret key (i.e. a
+private key or a password) matching one of the receiver keys. Given the secret
+key of one receiver, the corresponding (concealed) public key can be looked up
+in the format header. By doing this, the secret key is implicitly validated and
+the index of the receiver key can be determined without using any session data.
+
+As a special variant, an obfuscated format is specified which deliberately
+violates compliance to the Retro-Frame DATA FORMAT specifications in order to
+keep an AECD file stealthy.
+
+
+
+3. BINARY DATA FORMAT
+===============================================================================
+
+
+3.1 Characteristics
+-------------------------------------------------------------------------------
+
+AECD is a not self-delimiting binary format.
+
+There are no restrictions on the format version.
+
+Note that the circumflex-accent ('^'), when used in the syntax after a colon
+(':'), represents the XOR operation while it represents exponention otherwise.
+
+
+3.2 Cryptographic algorithms
+-------------------------------------------------------------------------------
+
+Diffie-Hellman key exchange has been chosen for the private key operations for
+the following reasons:
+
+1. There are (almost) no constraints on the secret keys. They may, in fact, be
+   derived from arbitrary bit sequences. In particular, the keys may be taken
+   from random, symmetric (e.g. password-based) or distributed key generation.
+
+2. The public key may be "nonced" in order to conceal even the receiver public
+   keys by exponenting the base as well as the public keys. In fact, the key
+   material may be "re-nonced" based on the nonced base and public keys.
+
+The symmetric session keys are generated randomly and encrypted using Diffie-
+Hellman operations for each public receiver key. The session-related key
+material is stored as a session header.
+
+The public key cipher is 2048 bit (256 bytes) Diffie-Hellman with following
+parameters:
+
+- Prime modulus (p):
+
+  UINT-2048BE p = 0x
+    FFFFFFFF FFFFFFFF FFFFD44C D629A2D8 FACD3F2B 7ECF1101 63529831 108DB581
+    9C5A9C09 28D94FB6 AD4CF71F 6A6EAF99 D0C31A39 4A804FC5 55C2991B F6D4E9F7
+    7FE8E4BB D1F2C874 063A3A52 F73827CF 958E66C7 88B76C69 B80BA035 011C1C36
+    D5BF1DE2 7642FDBE CB378245 8B69E6E0 E17E2F82 AEC019F2 75D37400 244F4477
+    5876B5F3 5DF1CD18 CEE19030 E4CBDC34 3F4C5C94 DC334A8C 7E97763C 23179BAB
+    886C6EA9 55983700 C832F7AA 860B2225 B8B4C66B 95E9F41A 89CD6C8F FD76D356
+    D69A380A E3713A63 D50DA0A1 2868F31B 9982FAB2 D7C4A35B 34F2C7E7 C64B841C
+    1E6D4559 0BC08FB3 2FFFDCE2 11A951A2 66A89CB9 A102265E C106EABE AEF3D7E9
+
+- Generator base (g):
+
+  UINT-2048BE g = 0x
+    7674A3D3 C2AB057B 6C039474 1B55A26D DA240F5F 45DBBD1A 70E629BB 57D8D015
+    1ABA07A2 9F790116 797015C6 9D49633A 764740B3 E91692DB 748EB264 82099965
+    7BBFFD96 46D37A98 D9D0A49A 930A13F1 F2CCDEFF AB59F427 2A752D73 095E914D
+    60640DDA F9D4C78E C74C6DF6 8F884CF9 748AA33C F1DA9061 D9B98F70 0F2194D5
+    F931A4C9 C2E41C96 0D3485EC 181B6766 8F43B375 7A2F1E9C DE5C6B8B CF7FC9B9
+    B214C200 90AFB126 8962E402 A024CCA6 E5869BDE 609E8AF4 D09FEFC4 21FA9688
+    62BC3762 C27A3ADD E824AA9D E5A53320 7F49A1F3 C88BEF02 B67937FF C96A8318
+    40B38290 36E36A1E 6C938E21 722AC753 20CAA285 F4DC2961 B2C68611 E95BE5E6
+
+The secret (i.e. private) key is a 513 bit key with the highest bit set to 1
+and the lower 512 bits chosen randomly or derived from a password (see below).
+
+The key derivation algorithm is PBKDF2 based on HMAC-SHA-256 with independent
+parameters:
+
+- Key derivation prefix for Diffie-Hellman session secrets (128 bit):
+
+  UINT-8 kdpDH[16] = {
+      0x52, 0x46, 0x46, 0x46, 0x53, 0x00, 0xAE, 0xDC,
+      0x00, 0x00, 0x4B, 0x44, 0x00, 0x44, 0x48, 0x00
+  }
+
+- Key derivation prefix for passwords (136 bit):
+
+  UINT-8 kdpPWD[17] = {
+      0x52, 0x46, 0x46, 0x46, 0x53, 0x00, 0xAE, 0xDC,
+      0x00, 0x00, 0x4B, 0x44, 0x00, 0x50, 0x57, 0x44,
+      0x00
+  }
+
+- Key derivation prefix for verification values (144 bit):
+
+  UINT-8 kdpVV[16] = {
+      0x52, 0x46, 0x46, 0x46, 0x53, 0x00, 0xAE, 0xDC,
+      0x00, 0x00, 0x4B, 0x44, 0x00, 0x56, 0x56, 0x00
+  }
+
+Those prefixes, appended by a 128 bit STREAM_ID, are used as the salt.
+
+The symmetric block cipher is AES-256 with 256 bit (32 bytes) key length and
+128 bit (16 bytes) block length. It is operated in GCM mode with 96 bit (12
+bytes) IV and 128 bit (16 bytes) MAC. IV is represented as UINT-96BE. As each
+session uses its own symmetric session key, a counter is used as the IV (thus,
+there are no concerns regarding the reuse of IVs over multiple sessions).
+
+The secure hash algorithm is SHA-256 with 256 bit (32 bytes) hash length.
+
+A cryptographically secure pseudo-random number generator (PRNG) is required to
+generate the random numbers which is not subject to this specification.
+
+
+3.3 Syntax of version 00:00
+-------------------------------------------------------------------------------
+
+AEDC_IDENTIFIER format:
+
+   2 BYTES  FORMAT_TYPE           : UINT-16BE = 0xAEDC
+   1 BYTE   FORMAT_VERSION_MAJOR  : UINT-8 = 0x00
+   1 BYTE   FORMAT_VERSION_MINOR  : UINT-8 = 0x00
+
+AEDC_STREAM format:
+
+   ? BYTES  BINARY_FORMAT  ; Retro-Frame binary data format expected
+
+AEDC_RECORD format:
+
+   ? BYTES  AEDC_STREAM  ; [DEFLATE] compressed, AES-256-GCM(key, iv) encrypted
+  16 BYTES  MAC          ; AES-256-GCM(key, iv) authentication token
+
+  ; Notes: [DEFLATE] compressed streams are self-delimited and always start at
+  ;        a byte boundary. If neccessary, a stream must be padded by zero
+  ;        bits. On decompression, these bits must be ignored.
+
+AEDC_END_RECORD format:
+
+   0 BYTES  EMPTY  ; [DEFLATE] compressed, AES-256-GCM(key, iv) encrypted, e.g.
+                   ; AES-256-GCM(key, iv) key stream xor 0x0300
+  16 BYTES  MAC    ; AES-256-GCM(key, iv) authentication token
+
+AEDC_SESSION format:
+
+   ; public session key:
+ 256 BYTES  PSK                 : UINT-2048BE = ExpMod(b, ssk, p)
+   ; encrypted session key:
+  32 BYTES  S[0]                : UINT-256BE = s ^ sk[0]
+            ...
+  32 BYTES  S[n - 1]            : UINT-256BE = s ^ sk[n - 1]
+   ? BYTES  AEDC_RECORD[0]      : key = s, iv = 0
+            ...
+   ? BYTES  AEDC_RECORD[m - 1]  : key = s, iv = m - 1
+   ? BYTES  AEDC_END_RECORD     : key = s, iv = m
+
+AEDC_KEY_TAB format:
+
+ 256 BYTES  BASE        : UINT-2048-BE = b
+ 256 BYTES  PFK[0]      : UINT-2048-BE = pfk[0]
+            ...
+ 256 BYTES  PFK[n - 1]  : UINT-2048-BE = pfk[n - 1]
+
+AEDC_HEADER format:
+
+  16 BYTES  STREAM_ID     : UINT-128BE = Random()  ; may be used as salt
+   1 BYTE   STREAM_TAG    : UINT-8 = tag ^ (Random() & ofMask) ^ ofKey < 0x10
+   ? BYTES  AEDC_KEY_TAB  : n = (tag & 0x0F) + 1
+
+AEDC_BODY format:
+
+   ? BYTES  AEDC_HEADER
+   ? BYTES  AEDC_SESSION
+            ...
+   ? BYTES  AEDC_SESSION
+
+AEDC format:
+
+   4 BYTES  AEDC_IDENTIFIER
+   ? BYTES  AEDC_BODY        : ofMask = 0x00, ofKey = 0x00
+
+AEDC_STEALTH_FILE format:
+
+   2 BYTES  OF_MAGIC   : UINT-16BE = Random() != 0x5246
+   1 BYTE   OF_KEY     : UINT-8 = ofKey = Random()
+   1 BYTE   OF_SHIFT   : UINT-8 = shift = ((GetBitLen(n - 1) - 1) << 2) ^ ofKey
+                       : ^ (Random() & 0xE3)  ; GetBitLen(0) = 1
+   ? BYTES  AEDC_BODY  : ofMask = 0xFF << ((((shift ^ ofKey) >> 2) & 0x07) + 1)
+
+
+3.4 Semantics
+-------------------------------------------------------------------------------
+
+n is the number of receiver keys (1 <= n <= 16).
+
+The following cryptographic keys are used (0 <= i < n):
+
+k[i]    = receiver secret key #i (513 bit, high bit set to 1)
+p[i]    = receiver public key #i (2048 bit, g^k[i] (mod p))
+
+r       = nonce (513 bit, high bit set to 1, lower bits chosen by PRNG)
+b       = Diffie-Hellman file base (2048 bit, g^r (mod p))
+pfk[i]  = public file key #i (2048 bit, p[i]^r = b^k[i] (mod p))
+
+s       = symmetric session key (256 bit, chosen random, used for AES-256-GCM)
+
+ssk     = secret session key (513 bit, high bit set to 1, lower bits chosen by
+          PRNG)
+psk     = public session key (2048 bit, b^ssk (mod p))
+ss[i]   = session secret #i (2048 bit, pfk[i]^ssk = psk^k[i] (mod p))
+sk[i]   = symmetric key #i (256 bit) from PBDKF2 with following parameters:
+          salt = kdpDH | STREAM_ID | UINT-16BE(i) (272 bit, big endian)
+          secret = ss[i] (2048 bit, big endian)
+          iterations = 1
+
+r'      = additional nonce (513 bit, high bit set to 1, lower bits chosen by
+          PRNG)
+b'      = re-nonced Diffie-Hellman file base (2048 bit, b^r' (mod p))
+pfk'[i] = re-nonced public file key #i (2048 bit, pfk[i]^r' (mod p))
+
+If a password is used as a secret which should be able to decrypt the contents
+of a AEDC data format, the lower 512 bits of the receiver secret key k[i] are
+derived from the password by the key derivation algorithm with following
+parameters:
+
+  salt = kdpPWD | STREAM_ID (264 bit)
+  secret = password (UTF-8 encoded, not terminated)
+  iterations = 4096
+
+The first 64 bytes of the resulting byte sequence are considered a big endian
+encoding of k[i] and an additional bit of value 1 is prepended implicitly. The
+corresponding receiver public key p[i] is calculated by g^k[i] (mod p).
+
+On encryption, in order to ensure that data can be decrypted be the intended
+receiver keys only, the public key material of a data collection (AEDC_KEY_TAB)
+is hashed by the secure hash algorithm:
+
+  hash = SHA-256(AEDC_KEY_TAB) = SHA-256(b | pfk[0] | ... | pfk[n - 1])
+
+It is suggested to use the resulting hash value directly when validation is
+performed by the application (e.g. by comparing it against a reference value).
+
+However, if validation is performed by the user, it is recommended to use a
+verification value which is based on a 64 bit output of the key derivation
+algorithm with following parameters:
+
+  salt = kdpVV | STREAM_ID (272 bit)
+  secret = hash (256 bit)
+  iterations = 256
+
+The output may be represented in a user-friendly manner. Note that validation
+by hash is independent from STREAM_ID while validation by user depends on it.
+
+On decryption, a given receiver public / private key pair p[i] / k[i] must be
+given. In order to identify the index (respectively whether the key is part of
+the AEDC_KEY_TAB at all), the corresponding public file key pfk[i] shall be
+calculated by b ^ k[i] (mod p) and be looked up in AEDC_KEY_TAB. If the data
+collection is valid according to this specification, the receiver will be able
+to decrypt all sessions. However, if the integrity of the data collection was
+violated in any way, the GCM MAC will be invalid.
+
+In order to authenticate a session, the key material of the session is hashed
+by the secure hash algorithm (big endian, unused leading bits are set to zero):
+
+  hash = SHA-256(SHA-256(AEDC_KEY_TAB) | PSK | S[0] | ... | S[n - 1])
+
+While this hash is calculated on encryption and verified on decryption, it is
+not specified how it may be transferred from the encryption environment to the
+decryption environment.
+
+If possible, the hash may be directly transferred and verified. However, if
+validation is performed by the user, it is recommended to use a verification
+value which is based on a 64 bit output of the key derivation algorithm with
+following parameters:
+
+  salt = kdpVV | STREAM_ID (272 bit)
+  secret = hash (256 bit)
+  iterations = 256
+
+The output may be represented in a user-friendly manner. Note that validation
+by hash is independent from STREAM_ID while validation by user depends on it.
+
+After load of an AEDC_HEADER, it may be used to add additional seed to the
+PRNG. In this case it is recommended to apply a new nonce to the public file
+key immediately after this step. While this may make the PRNG less predictable
+for attackes which get known of the new (i.e. re-nonced) AEDC_HEADER, it should
+not be considered as additional entropy because the old AEDC_HEADER is not
+secret and may also be known.
+
+If the AEDC format is represented by a file, a stealth mode is specified by
+the AEDC_STEALTH_FILE format which basically obfuscates the KEY_COUNT value in
+the AEDC_HEADER while all other values appear to be random anyway (however,
+note that if a secret receiver key is known, the corresponding public key can
+still be looked up). The obfuscation depends on the 8 bit values ofMask and
+ofKey which are taken from an almost random AEDC_IDENTIFIER. In normal mode
+(i.e. if a proper AEDC_IDENTIFIER is present), ofMask and ofKey are set to
+zero.
+
+
+3.5 Security considerations
+-------------------------------------------------------------------------------
+
+As the AEDC format is intended to collect data in insecure environments without
+using secret keys (except temporary keys for each session which is exposed to
+the environment anyway), no authentication of data is provided at all. Thus,
+any decrypted data should be considered untrusted and potentially dangerous.
+Note that the MAC is used to protect the integrity of a session but does not
+imply authenticity unless the session was authenticated by its hash (see
+chapter 3.4).
+
+In terms of confidentiality, it is vital to verify the the public key material
+of a data collection before a new session is created. A compromised header may
+include an untrusted public key. In particular, a public key may be replaced,
+an additional key may be added or a new file base may be calculated (re-nonced)
+while the intended receivers will still be able to decrypt the data (however,
+if a public key was replaced, the original receiver is able to detect this and
+decryption of sessions which have been added after the replacement of the key
+will fail).
+
+In addition, as all sessions are independent by design, sessions may be added,
+removed or rearranged in an arbitrary manner. Although it may be difficult to
+determine the session size without decrypting the data streams, this may be not
+difficult at all in some situations (e.g. if the file sizes are recorded after
+a session has been added).
+
+In general, it is absolutely vital to provide sufficient entropy to the PRNG
+which cannot be determined by an attacker.
+
+Note that the cryptographic algorithms used for major version 00 are currently
+considered strong but not quantum-safe.
+
+In particular, the Diffie-Hellman algorithm may become insecure when quantum
+computers with the required number of Q-bits and reliability (considering error
+correction) for solving the discrete logarithm problem (DLP) up to a 2048 bit
+modulus become available.
+
+Thus, if long-term security is required, a data format which provides quantum-
+safe cryptography should be considered.

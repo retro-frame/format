@@ -1,0 +1,386 @@
+
+===============================================================================
+ ____      _                   _____                         
+|  _ \ ___| |_ _ __ ___       |  ___| __ __ _ _ __ ___   ___ 
+| |_) / _ \ __| '__/ _ \ _____| |_ | '__/ _` | '_ ` _ \ / _ \
+|  _ <  __/ |_| | | (_) |_____|  _|| | | (_| | | | | | |  __/
+|_| \_\___|\__|_|  \___/      |_|  |_|  \__,_|_| |_| |_|\___|
+
+
+FORMAT - Retro-Frame Data Format Specifications
+
+CPCODE - Codepage Code ("CP-CODE")
+
+Repository:  <http://source.retro-frame.net/format>
+File:        /spec/rfdf-cpcode.txt//
+Version:     01.00!00
+Compliance:  Retro-Frame 1.0
+License:     MIT
+
+Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+
+
+Change history
+-------------------------------------------------------------------------------
+
+2026-02-14 : 01.00!00 : Ingo
+
+  Draft.
+
+
+Contents
+-------------------------------------------------------------------------------
+
+1. INTRODUCTION
+   1.1  Background
+   1.2  Scope
+   1.3  References
+
+2. OVERVIEW
+
+3. TEXT DATA FORMAT
+   3.1  Characteristics and character processing
+   3.2  Syntax of version 1.0
+   3.3  Semantics
+
+
+
+1. INTRODUCTION
+===============================================================================
+
+
+1.1 Background
+-------------------------------------------------------------------------------
+
+[RETRO-FRAME] is a Retro-Endeavor that provides [COMMON DOCUMENTATION] (i.e.
+definitions, guidelines, templates and generic specifications) as well as
+topic-related specifications (covered by individual repositories like this
+one related to data format specifications) which are intended for use in
+retrospective programming and may be used as a whole or partially for other
+purposes.
+
+The Retro-Frame Data Format Specifications comprise binary and text data
+formats which may be implemented by a program (e.g. as file formats) and may
+be used by other specifications.
+
+
+1.2 Scope
+-------------------------------------------------------------------------------
+
+This document specifies the Codepage Code (CPCODE) data format of the type
+"CP-CODE" which may be used to specify a single codepage.
+
+
+1.3 References
+-------------------------------------------------------------------------------
+
+[COMMON DOCUMENTATION]
+Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
+
+[RETRO-FRAME]
+Retro-Frame homepage, see <http://source.retro-frame.net/>.
+
+[UNICODE]
+The Unicode(R) Standard, The Unicode Consortium, for latest version see
+<https://www.unicode.org/versions/latest/>.
+
+
+
+2. OVERVIEW
+===============================================================================
+
+In modern world, the leading character set is [UNICODE], which is encoded by a
+set of standardized UTF-based character encodings (note that Retro-Frame
+characters are a superset of Unicode but with a different character encoding
+scheme).
+
+However, in earlier times, multiple character sets and character encodings
+existed.
+
+While most of those character sets were encoded by a single byte (and thus
+consisted of no more than 256 codepoints), some character sets were represented
+by a single byte or a sequence of two bytes (e.g. Shift JIS). In addition, some
+statful encodings existed which used control characters like SHIFT-OUT and
+SHIFT-IN to switch between character sets.
+
+As it seems infeasible to implement all of the possible (often vendor-specific)
+codepages, the CPCODE data format is intended to define a single codepage by a
+text format which can be translated 1-to-1 to a binary codepage (CP) format
+(see /spec/rfdf-cp.txt//). As the elements of the CPCODE and the CP data
+formats are identical, a CP format may also be translated back to a CPCODE
+format in order to make its contents readable or modifyable.
+
+The CPCODE format version 1.0 supports the CP format versions 31:00, 32:00,
+33:00, 34:00 and 34:01. In general, the lowest format version which provides
+all required features should be chosen. However, the CPCODE format allows a
+linkage to a particular CP format version in the header.
+
+
+
+3. TEXT DATA FORMAT
+===============================================================================
+
+
+3.1 Characteristics and character processing
+-------------------------------------------------------------------------------
+
+CPSPEC is a not self-delimiting text format using the MINIMAL CHARACTER SET.
+
+On input, the NUL and DEL control characters should be ignored while all other
+control characters (including HT) are invalid. On output, no control characters
+other than line breaks should be written.
+
+No escaping is recognized.
+
+The following tokens may appear in the body of a CPSPEC data format (in the
+precedence as listed):
+
+- A colon ":", optionally followed by an identifier which may consist of
+  digits, letters and hyphens ("-"), enclosed by digits or letters, with a
+  maximum length of 31 characters. Note that whitespace is allowed between the
+  colon and the identifier (if given). While a colon without a following
+  identifier is considered its own token, a colon with a following identifier
+  may be considered two separate tokens or a single token which represents the
+  identifier.
+
+- One of the following keywords: "MULTIBYTE", "ITERATE", "ITERATE-LE",
+  "ITERATE-LE-32" or "ITERATE-LE-16". A keyword must not be preceded or
+  trailed by a digit or a letter.
+
+- One of the following double-character symbols: ".." or "<<".
+
+- One of the following symbols: "(", ")", "+", "/", "-", "." or ">".
+
+- A hexadecimal value with a maximum length of 31 characters and a maximum
+  value of 0x00FFFFFF. A value must not be preceded or trailed by a digit or
+  a letter.
+
+There are no restrictions on the format version. For a mapping between CPCODE
+format versions an CP format version, see chapter 2.
+
+
+3.2 Syntax of version 1.0
+-------------------------------------------------------------------------------
+
+<cpcode-format-identifier>:
+
+  "CP-CODE/1.0"
+
+<cpcode-target>:
+
+  "CP/"_(_"1"_"2"_"3"_"4"_"5"_"6"_"7"_"8"_"9"_)_"."_9
+
+<cpcode-line-break>:
+
+  [ ";"_[_!_|_WS_]*_] LB
+
+<cpcode-identifier>:
+
+  ( 9 | A ) [ [_"-" ] (_9 |_A ) ]*
+
+<cpcode-value>:
+
+  X [_X ]*
+
+<cpcode-range>:
+
+  <cpcode-value> ".." <cpcode-value>
+
+<cpcode-value-sequence>:
+
+  "(" [ "+" ] <cpcode-value> ( <cpcode-value> )* ")"
+
+<cpcode-symbol>:
+
+  "-" | "." | "/"
+
+<cpcode-mapping>:
+
+  <cpcode-value> | <cpcode-value-sequence> | <cpcode-symbol> | "<<"
+
+<cpcode-ref>:
+
+  ( "MULTIBYTE" | ">" ) ( <cpcode-symbol> | ":" [ <cpcode-identifier> ] )
+
+<cpcode-range-mapping>:
+
+  ( "ITERATE" | "ITERATE-LE" [_"-32" |_"-16" ] ) <cpcode-value>
+
+<cpcode-directive>:
+
+  ( <cpcode-ref> | <cpcode-range-mapping> )
+
+<cpcode-standard-line>:
+
+  <cpcode-value> ( ( <cpcode-mapping> )* | <cpcode-directive> )
+
+<cpcode-range-line>:
+
+  <cpcode-range> ( <cpcode-mapping> | <cpcode-directive> )
+
+<cpcode-line>:
+
+  <cpcode-standard-line> | <cpcode-range-line> | ":" <cpcode-identifier>
+
+<cpcode-header>:
+
+  [ ":"_[_LB_]_[_<cpcode-target>_]_[_<rf-skip-element>_]*_] ( LB | "??" )
+
+<cpcode-body>:
+
+  [ [ <cpcode-line> ] <cpcode-line-break> ]*
+
+<cpcode>:
+
+  <cpcode-format-identifier>_<cpcode-header>_<cpcode-body>
+
+
+3.3 Semantics
+-------------------------------------------------------------------------------
+
+In general, a CPCODE format shall be translated to the minimum CP format
+version which provides all required features. However, if <cpcode-target> is
+present, the translation target shall be the CP format version as specified
+(if features are used which cannot be represented by the target CP format
+version, translation shall fail).
+
+The CPCODE format body is a sequence of possibly empty lines where whitespace
+and comments (i.e. a semicolon ";", followed by an arbitrary sequence of
+characters up to the next LF) are ignored.
+
+All <cpcode-value> represent hexadecimal values (e.g. 1F represents the decimal
+value 31). They either represent the current code within a table (i.e. 00..FF)
+or a valid Retro-Frame character codepoint (i.e. 000000..126FC1 excluding the
+values 00DD00..00DFFF, 00FDD0..00FDEF and XXFFFE..XXFFFF for XX = 00..10).
+
+At the beginning of the format, an unnamed table is introduced implicitly. Each
+table consists of 256 code rules which may be grouped by ranges. A code rule
+may be a <cpcode-mapping> or a <cpcode-directive> which affects the current
+code. At the start of each table, the current code is set to zero.
+
+A non-empty line may be one of the following:
+
+- A <cpcode-standard-line> which consists of the current code of the current
+  table, FF at maximum, followed a single <cpcode-directive> or one or more
+  <cpcode-mapping> items. The current code is incremented by one for each
+  <cpcode-directive> or <cpcode-mapping> item.
+
+- A <cpcode-range-line> which consists of a range, starting by the current code
+  of the current table and ending at a code at least one greater than the
+  starting code and FF at maximum, and a single <cpcode-directive> or <cpcode-
+  mapping>. The current code is incremented by the size of the range (i.e.
+  max code - min code + 1). The size of a range must be greater than 1.
+
+- A colon ":", followed by a single <cpcode-identifier> which introduces a new
+  table. The current code is set to zero.
+
+A <cpcode-directive> is one of the following:
+
+- A multibyte reference which refers either to a <cpcode-symbol> or a table
+  (i.e. if the corresponding code appears, another byte is expected). If a
+  <cpcode-symbol> is referenced, an unnamed table is assumed where the range
+  00..FF is assigned to that symbol (see below).
+
+- A shift-out reference which refers either to a <cpcode-symbol> or a table
+  (i.e. if the corresponding code appears, the effective table is switched
+  permanently until another shift-out or a shift-in appears). If a <cpcode-
+  symbol> is referenced, an unnamed table is assumed where the range 00..FF is
+  assigned to that symbol (see below) except that for a solidus ("/") the code
+  code 0F represents a shift-in (note that in general, the ASCII code 0F is
+  not implicitly recognized as a SHIFT-IN but mapped to its codepoint).
+
+- A range mapping using a start value. The range may be a sequence of single
+  codes or code ranges for each multibyte codepage in one of the following
+  order:
+
+  - ITERATE builds the range from the first code to the last one.
+  - ITERATE-LE builds the range from the last code to the first one.
+  - ITERATE-LE-32 makes groups of up to four code bytes little-endian but
+    consecutive groups are treatened in order (i.e. like ITERATE).
+  - ITERATE-LE-16 makes groups of up to two code bytes little-endian but
+    consecutive groups are treatened in order (i.e. like ITERATE).
+
+  Example:
+
+  The CPCODE
+
+    0..1 MULTIBYTE :0
+    :0
+    0..9 /
+    A MULTIBYTE :1
+    :1
+    0..F ITERATE-LE ABC
+
+  results in the following range mapping:
+
+    00 0A 00 codepoint 0ABC
+    01 0A 00 codepoint 0ABD
+    00 0A 01 codepoint 0ABE
+    01 0A 01 codepoint 0ABF
+    00 0A 02 codepoint 0ABF
+    ...
+    01 0A 0F codepoint 0ADB
+
+In all cases, a table is referenced by a colon (":"), optionally followed by
+the identifier of that table (if no identifier is present, the unnamed first
+table is referenced). As the maximum length of a token is 31 characters, this
+is also the maximum length of an identifier.
+
+A <cpcode-mapping> is one of the following:
+
+- A single codepoint value.
+
+- A hyphen "-" which represents an invalid code.
+
+- A full stop "." which represents a code which will be ignored on input.
+
+- A solidus "/" which represents a codepoint equal to the corresponding code
+  of the table. Note that in a multibyte sequence, only the codes of the final
+  table are effective.
+
+  Example:
+
+  The CPCODE
+
+    0..1 MULTIBYTE :0
+    :0
+    0..1 /
+
+  results in the following codepoint mapping:
+
+    00 00 codepoint 0000
+    00 01 codepoint 0001
+    01 00 codepoint 0000
+    01 01 codepoint 0001
+
+- A double less-than sign "<<" which represents a shift-in.
+
+- A sequence of not invertible codepoint values, enclosed in parenthesis ("("
+  and ")"), of one or more (up to 16) codepoints. Not invertible meanst that
+  such a codepoint sequence will not be translated back to the code or sequence
+  of codes.
+
+- A sequence of invertible codepoint values, enclosed in parenthesis ("("
+  and ")"), starting with a plus sign "+" after the left parenthesis and
+  followed by one or more (up to 16) codepoints. Invertible meanst that such
+  a codepoint sequence may be translated back to the code or sequence of codes.

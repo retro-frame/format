@@ -1,0 +1,507 @@
+
+===============================================================================
+ ____      _                   _____                         
+|  _ \ ___| |_ _ __ ___       |  ___| __ __ _ _ __ ___   ___ 
+| |_) / _ \ __| '__/ _ \ _____| |_ | '__/ _` | '_ ` _ \ / _ \
+|  _ <  __/ |_| | | (_) |_____|  _|| | | (_| | | | | | |  __/
+|_| \_\___|\__|_|  \___/      |_|  |_|  \__,_|_| |_| |_|\___|
+
+
+FORMAT - Retro-Frame Data Format Specifications
+
+General Documentation
+
+Repository:  <http://source.retro-frame.net/format>
+File:        /doc/rf-format.txt
+Version:     01.00!00
+Compliance:  Retro-Frame 1.0
+License:     MIT
+
+Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+
+
+Change history
+-------------------------------------------------------------------------------
+
+2026-02-14 : 01.00!00 : Ingo
+
+  Draft.
+
+
+Contents
+-------------------------------------------------------------------------------
+
+1. INTRODUCTION
+   1.1  Background
+   1.2  Scope
+   1.3  References
+
+2. TEXT ENCODING
+   2.1  Text data on a text stream
+   2.2  Reading text data from a binary stream
+   2.3  Writing text data to a binary stream
+   2.4  Binary data on a text stream
+
+3. DATA FORMAT SPECIFICATIONS
+   3.1  Binary formats
+   3.2  Text formats
+   3.3  Standard text format structure
+
+4. FILE NAME EXTENSIONS
+
+
+
+1. INTRODUCTION
+===============================================================================
+
+
+1.1 Background
+-------------------------------------------------------------------------------
+
+[RETRO-FRAME] is a Retro-Endeavor that provides [COMMON DOCUMENTATION] (i.e.
+definitions, guidelines, templates and generic specifications) as well as
+topic-related specifications (covered by individual repositories like this
+one related to data format specifications) which are intended for use in
+retrospective programming and may be used as a whole or partially for other
+purposes.
+
+The Retro-Frame Data Format Specifications comprise binary and text data
+formats which may be implemented by a program (e.g. as file formats) and may
+be used by other specifications.
+
+
+1.2 Scope
+-------------------------------------------------------------------------------
+
+This document provides a list of all Retro-Frame data format specifications as
+well as general data format specifications and guidelines.
+
+Each data format has a unique name. The actual specification document can
+be found in the /spec/ directory by its name as the file name, prefixed by
+"rfdf-" and the suffixed by ".txt".
+
+
+1.3 References
+-------------------------------------------------------------------------------
+
+[COMMON DOCUMENTATION]
+Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
+
+[RETRO-FRAME]
+Retro-Frame homepage, see <http://source.retro-frame.net/>.
+
+
+
+2. TEXT ENCODING
+===============================================================================
+
+While a binary data format on a binary stream can be processed without further
+considerations (assuming that one byte consists of exactly 8 bits), character
+encoding has to be considered if text data or streams are used.
+
+
+2.1 Text data on a text stream
+-------------------------------------------------------------------------------
+
+If access to a text stream is provided by the environment (e.g. an API), the
+text stream is considered a sequence of native characters. While in some cases
+the character set of those characters may be known (or even selectable), in
+other cases it may be unknown.
+
+However, if the source code is constrained (e.g. to MINIMAL CHARACTER SET,
+STANDARD CHARACTER SET, FULL CHARACTERS SET, SORTABLE CHARACTER SET or a
+specific CHARACTER DOMAIN), additional assumptions may be made, even if the
+exact native character set remains unknown (e.g. in full ASCII domain, the
+codepoints from 0x00 to 0x7F are defined, including lowercase letters, and all
+letters are consecutive). Instead of constraints, certain properties of the
+CHARACTER SET may even be detected at run-time.
+
+If a NUL character is given or assumed, it should be ignored. As a consequence,
+in ASCII domain, UCS-2, UCS-4, UTF-8, UTF-16, UTF-32 and CESU will be processed
+correctly if the text stream only consists of ASCII characters. It may be
+necessary, however, to skip a Byte Order Mark. Thus, if ASCII character set is
+assumed and NUL characters are ignored, the following character code sequences
+shall be skipped if they occur at the very beginning of a text stream:
+
+- 0xFE 0xFF
+- 0xFF 0xFE
+- 0xED 0xBB 0xBF
+
+Character encoding may still be switched if a CODEPAGE identifier is given in
+the RFFF header (see /spec/rfdf-rfff.txt//).
+
+As in this case the environment is responsible of translation, no explicit code
+is required for encoding. However, on the other hand, the encoding capabilities
+depend on the environment and may be limited.
+
+
+2.2 Reading text data from a binary stream
+-------------------------------------------------------------------------------
+
+When a text data format is read from a binary stream, a sequence of bytes has
+to be translated into a sequence of characters (e.g. Retro-Frame characters).
+
+The CHARACTER ENCODING of the binary stream shall be determined by the
+following rules (in the given order, see [COMMON DOCUMENTATION],
+/spec/rf-types.txt//, chapter 4 for a specification of the character types):
+
+- An explicitly selected character encoding, if given (e.g. by user input or
+  configuration), has the highest priority. For UCS, UTF or CESU encoding, a
+  Byte Order Mark is optional but ignored if present.
+
+- If a Byte Order Mark (codepoint FEFF) is present at the very beginning of
+  the stream, UTF / CESU encoding and the Unicode CHARACTER SET or PCS encoding
+  and the Retro-Frame CHARACTER SET shall be assumed:
+
+  - 00 00 FE FF indicates UTF-32BE encoding
+
+  - FF FE 00 00 indicates UTF-32LE encoding
+
+  - FE FF indicates UTF-16BE encoding
+
+  - FF FE indicates UTF-16LE encoding
+
+  - EF BB BF indicates CESU-8 encoding (UTF-8 but surrogate pairs are decoded)
+
+  - EC 8F 5F indicates PCS encoding (Retro-Frame character set)
+
+  Note that the Byte Order Mark of UTF-32LE is ambiguous as it could be a
+  UTF-16LE encoding with codepoint 0x0000 (NUL) immediately following the Byte
+  Order Mark. However, if this sequence occurs, UTF-32LE shall be assumed.
+
+  This Byte Order Mark (in contrast to subsequent occurrences) is not
+  considered part of the resulting text stream.
+
+- If a Magic Prefix is present, the byte sequence representing the string
+  "RFFF/" may be used to determine the CHARACTER ENCODING respectively the
+  CHARACTER DOMAIN (see /spec/rfdf-rfff.txt//).
+
+  Note that a Byte Order Mark after a Magic Prefix will always be processed
+  rather than ignored or even evaluated.
+
+- The current CHARACTER ENCODING of the environment (e.g. the console), if it
+  can be determined, shall be assumed.
+
+- A SINGLE BYTE CHARACTER SET is assumed using known CODEPOINTS of the native
+  CHARACTER SET (e.g. by means of constants).
+
+CODEPOINTS which are read but represent an unknown CHARACTER may still be
+processed (e.g. copied) using direct encoding.
+
+
+2.3 Writing text data to a binary stream
+-------------------------------------------------------------------------------
+
+When a text data format is written to a binary stream, a sequence of characters
+has to be translated into a sequence of bytes.
+
+The CHARACTER ENCODING of the binary stream shall be determined by the
+following rules (in the given order, see [COMMON DOCUMENTATION],
+/spec/rf-types.txt//, chapter 4 for a specification of the character types):
+
+- An explicitly selected character encoding, if given (e.g. by user input or
+  configuration), has the highest priority.
+
+- An implicitly selected character encoding, if useful for the program.
+
+- The current CHARACTER ENCODING of the environment (e.g. the console), if it
+  can be determined and character translation is not required or possible.
+
+- Known CODEPOINTS of the native CHARACTER SET (e.g. by means of constants)
+  which are written as single bytes if all characters can be represented by
+  this implicit CODEPAGE.
+
+- UTF-8 otherwise.
+
+For UCS, UTF or CESU encoding, a Byte Order Mark shall be written at the very
+beginning of the binary stream. Note that a proper UTF encoding shall be used
+in all cases (thus, CODEPOINTS >= 0x010000 must be replaced in UCS-2) unless
+invalid encodings (including those which would be properly decoded by CESU-8
+or UTF-32) are written as direct encodings.
+
+CODEPOINTS which have no or an unknown encoding may be replaced by appropriate
+CHARACTERS. In particular, the following extended characters shall be replaced
+if the CHARACTER ENCODING of the stream does not support extended characters:
+
+- Sequences of TSP shall be replaced by a single space (' ') unless it appears
+  at the beginning or the end of the stream.
+
+- CRLF shall be replaced by a sequence of CR and LF.
+
+- LFCR shall be replaced by a sequence of LF and CR.
+
+In any other case, the CODEPOINT shall be ignored, replaced by a replacement
+character or written as an escape sequence.
+
+
+2.4 Binary data on a text stream
+-------------------------------------------------------------------------------
+
+Unlike reading or writing text data on a binary stream, there is no implicit
+mode for reading or writing binary data on a text stream. If required, a
+format which is capable to map binary data to text data has to be used (e.g.
+base-64 or UUencode).
+
+
+
+3. DATA FORMAT SPECIFICATIONS
+===============================================================================
+
+
+3.1 Binary formats
+-------------------------------------------------------------------------------
+
+Each binary data format type is represented by a 4-digit hexadecimal number.
+The table is sorted by the ID. Some values do not represent an actual format
+type but a Byte Order Mark (BOM) which indicates a text data format.
+
+In order to avoid conflicts with text data format types in the ASCII domain,
+the first byte of a binary format identifier must not be 2F ('/'). As a solidus
+always appears in a Magic Prefix in text format, it it thus always possible to
+distinguish binary data formats from text data formats in files if a Magix
+Prefix is given.
+
+Immediately following the format type, the next two bytes represent the major
+and minor version of the format type. Unlike other version numbers, the major
+as well as the minor version number of a binary data format may be in the range
+00..FF (see [COMMON DOCUMENTATION], /doc/rf-guide.txt//, chapter 7.5). However,
+the valid version numbers may be restricted by the data format specification.
+
+Thus, the entire format identifier of a binary format consists of 4 bytes.
+
+  Type  Name        Description
+  ----  ----------  -----------------------------------------------------------
+  0000  n/a         Reserved for text data formats in UTF-32BE encoding with a
+                    BOM
+  0001  BIN         Unspecified Binary
+  2FXX  n/a         Reserved for the text data format Magix Prefix in the ASCII
+                    domain ("RFFF/")
+  4350  CP          Codepage
+  5043  PCS         Packed Character String Text Data Format
+  5246  RFFF        Magic Prefix
+  AEDC  AEDC        Asymmetrically Encrypted Data Collection
+  EE2B  VEE2B       Virtual Execution Environment #2 Binary
+  EFBB  n/a         Reserved for text data formats in CESU-8 encoding with a
+                    BOM
+  FEFF  n/a         Reserved for text data formats in UTF-16BE encoding with a
+                    BOM
+  FFFE  n/a         Reserved for text data formats in UTF-16LE or UTF-32LE
+                    encoding with a BOM
+  FFFF  n/a         Unused (may be used to represent an invalid format type)
+
+
+3.2 Text formats
+-------------------------------------------------------------------------------
+
+Each text data format is represented by an identifier, consisting of the format
+type, followed by a version sequence:
+
+<format-type>:
+
+  A [ [_"-" ] (_9 |_A ) ]*
+
+<format-version-number>
+
+  "0" | ( "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" [_9 ]* )
+
+<format-version>:
+
+  <format-version-number>_"."_<format-version-number>
+
+<format-identifier>:
+
+  <format-type>_"/"_<format-version>
+
+A format version number must not have leading zeros. Note that <format-version>
+is considered invalid if the version number is not in the allowed range (see
+[COMMON DOCUMENTATION], /doc/rf-guide.txt//, chapter 7.5). As a consequence,
+format version numbers of more than two digits are still considered part of the
+format version but invalid (e.g. "1.111").
+
+  Type       Name        Description
+  ---------  ----------  --------------------------------------------------
+  "ASM"      ASM         Assembler Code Selector
+  "CP-CODE"  CPCODE      Codepage Code
+  "CP-SPEC"  CPSPEC      Codepage Specifications
+  "RFFF"     RFFF        Magic Prefix
+  "SYM"      SYM         Symbol Table (mapping of values to symbolic names)
+  "TEXT"     TEXT        Unspecified Text
+
+
+3.3 Standard text format structure
+-------------------------------------------------------------------------------
+
+Note that a text format is recognized by the <format-identifier> (as described
+in chapter 3.2). Immediately starting with the next character which is not
+considered part of the <format-identifier> (i.e. a non-digit character), the
+text format specification determines the structure of the text data.
+
+However, in order to simplify understanding and processing of text formats, the
+following standard structure shall be used whenever possible:
+
+<standard-text-format-structure>:
+
+  <body> | <format-identifier>_<header>_<body> [_<footer> ]
+
+Note that the <body> may consist of one or more nested text formats:
+
+- A text format where the entire <body> represents exactly one nested text
+  format is called a wrapper format.
+
+- A text format where no nested text format is recognized in the <body> is
+  called a terminal format.
+
+- A text format which is neither a wrapper format nor a terminal format is
+  called an aggregate format.
+
+A <body> without a <format-identifier> shall only be accepted for terminal text
+format files if the text format can be determined by the file name extension
+(see chapter 4). In this case, neither a <header> nor a <footer> is recognized.
+In any other case, the text format consists of a <format-identifier>, followed
+by a <header> and a (possibly empty) <body> and an optional <footer>.
+
+A <header> consists of a sequence of one or more header elements which are
+always introduced by a colon (':') and an optional line break.
+
+<header>:
+
+  [_":"_[_LB_]_<header-element>_]*_<header-terminator>
+
+The <header> is terminated by a character sequence which depends on whether or
+not the text format is a wrapper:
+
+<header-terminator>:
+
+  <wrapper-header-terminator> | <non-wrapper-header-terminator>
+
+<wrapper-header-terminator>:
+
+  "?" [_LB ]
+
+<non-wrapper-header-terminator>:
+
+  LB | "??"
+
+A <header-element> shall not contain a line break. In addition, it shall not
+contain a colon (':') or question mark ('?') unless preceded by an odd number
+of circumflex accents ('^', caret). Whether or not other escape sequences are
+processed is subject to the format specification. However, according to these
+rules it is possible to recognize each <header-element> as well as the end of
+a sequence of header elements.
+
+The type of the value of a header element may be recognized by the position of
+the header element or by an explicit header element identifier at the start of
+the element which is separated from the value by an equals sign ('='):
+
+<header-element>:
+
+  [ <header-element-identifier>_"="_] <header-element-value>
+
+A program shall skip all header elements which are not specified by the format
+version which is recognized. This makes header elements an importand mechanism
+for upward compatibility as the text format structure can still be parsed
+although parts of the header may be ignored and thus the according features
+cannot be used. A warning may be displayed in such a case.
+
+Note that a <header-element> may be empty. This may be used if one or more
+elements are unused before an element which is recognized by position occurs.
+However, if the last <header-element> is empty, this has the special meaning
+that a footer is present (see below).
+
+If the text format specifies a self-delimiting <body> and further characters
+appear until the <footer> or the end of the text stream, those characters shall
+be ignored. An aggregate text format must always specify a mechanism to delimit
+each nested format. In this case, each nested format is considered its own
+stream.
+
+If a <footer> is present, the <body> shall be termined by a squence of two
+question marks ('?'), immediately followed by a colon (':'), and a sequence of
+footer elements in the same format as header elements are expected:
+
+<footer>:
+
+  "??" (_":"_[_LB_]_<footer-element>_)*
+
+<footer-element>:
+
+  [ <footer-element-identifier>_"="_] <footer-element-value>
+
+If the text sequence "??:" appears in the <body>, the colon shall be escaped
+(i.e. the text sequence is replaced by "??^:"). Again, whether escaping is
+supported in general is subject to the format specification. Note that this
+special form of escaping shall always be recognized if a footer is indicated
+by the header (see above).
+
+If multiple footers are present, all footers except the last one are terminated
+by the "??:" of the next footer and each footer matches the closest header
+which indicated a footer.
+
+The following non-terminal symbols shall be used by text format specifications
+in order to skip header of footer elements:
+
+<rf-skip-element>:
+
+  ":" [_LB ] [_. |_"^"_( "^" | ":" | "?" ) ]*
+
+
+
+4. FILE NAME EXTENSIONS
+===============================================================================
+
+In this chapter, file name extensions are associated with the formats. The
+recommended standard file name extensions have no more than six characters and
+are chosen as best as possible so that they are not already used for other file
+formats. However, for the short file name extensions, which have no more than
+three characters, collisions are inavoidable. The standard file name extensions
+are given in lowercase letters while the short file name extensions are given
+in uppercase letters.
+
+For binary files (i.e. files using a binary data format), the data format shall
+always be determined by a magic prefix, if present. In this case, the file name
+extension is only used to indicate the format to the user.
+
+For files in a text data format without a Retro-Frame file header, or files in
+a binary data format which do not provide a magic prefix, the data format may
+be determined by the suffix.
+
+A program which allows filtering a directory listing when selecting a file
+(e.g. in a file open dialog) should provide both, the standard and the short
+file name extension unless it is known that the file system does not support
+the standard file name extensions in which case only the short form may be
+provided as a filter. However, in any case, a file must be selectable without
+any filter. When the file name is provided as a string (e.g. by a command line
+argument), the program may append the extension implicitly if the file name
+does not have an extension (i.e. the file name does not contain a period '.').
+
+  Standard     Short   Format name
+  -----------  ------  -----------
+  ".asm"       ".ASM"  ASM
+  ".bin"       ".BIN"  BIN
+  ".CP"        ".CP"   CP
+  ".CPC"       ".CPC"  CPCODE
+  ".CPS"       ".CPS"  CPSPEC
+  ".pcs"       ".PCS"  PCS
+  ".rff"       ".RFF"  RFFF
+  ".symtab"    ".SYM"  SYM
+  ".txt"       ".TXT"  TEXT
+  ".vee2b"     ".EE2"  VEE2B

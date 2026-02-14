@@ -1,0 +1,242 @@
+
+===============================================================================
+ ____      _                   _____                         
+|  _ \ ___| |_ _ __ ___       |  ___| __ __ _ _ __ ___   ___ 
+| |_) / _ \ __| '__/ _ \ _____| |_ | '__/ _` | '_ ` _ \ / _ \
+|  _ <  __/ |_| | | (_) |_____|  _|| | | (_| | | | | | |  __/
+|_| \_\___|\__|_|  \___/      |_|  |_|  \__,_|_| |_| |_|\___|
+
+
+FORMAT - Retro-Frame Data Format Specifications
+
+SYM - Symbol Table ("SYM")
+
+Repository:  <http://source.retro-frame.net/format>
+File:        /spec/rfdf-sym.txt//
+Version:     01.00!00
+Compliance:  Retro-Frame 1.0
+License:     MIT
+
+Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+
+
+Change history
+-------------------------------------------------------------------------------
+
+2026-02-14 : 01.00!00 : Ingo
+
+  Draft.
+
+
+Contents
+-------------------------------------------------------------------------------
+
+1. INTRODUCTION
+   1.1  Background
+   1.2  Scope
+   1.3  References
+
+2. OVERVIEW
+
+3. TEXT DATA FORMAT
+   3.1  Characteristics and character processing
+   3.2  Syntax of version 1.0
+   3.3  Semantics
+
+
+
+1. INTRODUCTION
+===============================================================================
+
+
+1.1 Background
+-------------------------------------------------------------------------------
+
+[RETRO-FRAME] is a Retro-Endeavor that provides [COMMON DOCUMENTATION] (i.e.
+definitions, guidelines, templates and generic specifications) as well as
+topic-related specifications (covered by individual repositories like this
+one related to data format specifications) which are intended for use in
+retrospective programming and may be used as a whole or partially for other
+purposes.
+
+The Retro-Frame Data Format Specifications comprise binary and text data
+formats which may be implemented by a program (e.g. as file formats) and may
+be used by other specifications.
+
+
+1.2 Scope
+-------------------------------------------------------------------------------
+
+This document specifies the Symbol Table (SYM) data format of the type "SYM"
+which may be used to map hexadecimal values to symbolic names.
+
+
+1.3 References
+-------------------------------------------------------------------------------
+
+[COMMON DOCUMENTATION]
+Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
+
+[RETRO-FRAME]
+Retro-Frame homepage, see <http://source.retro-frame.net/>.
+
+
+
+2. OVERVIEW
+===============================================================================
+
+During compile, unknown memory locations within a translation unit are usually
+surrogated by a symbol which may be represented by a symbol name. While
+compilers of high-level programming languages may create such symbols
+implicitly, assemblers may directly support symbols.
+
+A symbol name is a sequence of characters, prefixed by one ore more '@' signs,
+which are followed by an identifier that consists of an arbitrary sequence of
+digits, letters, underscores, number-signs and dollar-signs). The count of
+prefixed '@' characters may be used to distinguish symbols (e.g. dependent on
+their scope).
+
+When a memory location of a symbol becomes known, its value is assigned to one
+or more corresponding symbol names. Multiple assignments of values to symbol
+names are kept in a symbol table.
+
+The SYM format provides a simple text-based data format in order to represent a
+symbol table.
+
+
+
+3. TEXT DATA FORMAT
+===============================================================================
+
+
+3.1 Characteristics and character processing
+-------------------------------------------------------------------------------
+
+SYM is a not self-delimiting text format.
+
+The STANDARD CHARACTER SET shall be used (i.e. other characters shall be
+considered invalid).
+
+On input, the NUL control character shall be ignored while all other control
+characters shell be treatened as whitespace (WS). On output, no control
+characters should be written.
+
+Neither escaping nor tokenizing is used.
+
+There are no restrictions on the format version.
+
+
+3.2 Syntax of version 1.0
+-------------------------------------------------------------------------------
+
+<sym-format-identifier>:
+
+  "SYM/1.0"
+
+<sym-line-break>:
+
+  [ WS ]* [ ( ":" | ";" ) [ . | WS ]* ] LB
+
+<sym-value>:
+
+  (_x |_X )*
+
+<sym-name-prefix>:
+
+  ( "@"_)*
+
+<sym-name-identifier>:
+
+  (_9 |_A |_a |_"_" |_"#" |_"$" )*
+
+<sym-name>:
+
+  <sym-name-prefix>_<sym-name-identifier>
+
+<sym-name-sequence>:
+
+  ( <sym-name> )*
+
+<sym-definition>:
+
+  <sym-value> <sym-name-sequence>
+
+<sym-header>:
+
+  [ <rf-skip-element>_]* ( LB | "??" )
+
+<sym-body>:
+
+  ( [ <sym-definition> ] <sym-line-break> )*
+
+<sym>:
+
+  <sym-format-identifier>_<sym-header>_<sym-body>
+
+
+3.3 Semantics
+-------------------------------------------------------------------------------
+
+A SYM data format is an arbitrary sequence of lines where whitespace and an
+optional trailing comment is ignored. For the minor version 0, a colon (':') as
+well as a semicolon (';') may introduce a comment and all subsequent characters
+are ignored until a line break (LB) is reached. While future minor versions may
+treat the colon diffently in order to add features which will be ignored by
+this minor version, the semicolon should always introduce an actual comment.
+
+Each line may or may not contain a symbol definition. If a symbol definition
+is present, it consists of a hexadecimal value, followed by one or more symbol
+names.
+
+The <sym-value> part is an unprefixed hexadecimal value. Leading zeros should
+be skipped and the length of the significant hexadecimal digits is not limited
+by the SYM format. Instead, the implementation should report an error if the
+value exceeds limits.
+
+The value of a <sym-value> must be greater or equal than the values of all
+previous occurrences of <sym-value> (i.e. the values must be sorted ascending).
+An implementation must report an error if this constraint is violated.
+
+The <sym-name> represents the symbol name, which consists of the symbol prefix
+<sym-name-prefix> and the symbol identifier <sym-name-identifier>. The length
+of neither the symbol prefix nor the symbol identifier is limited by the SYM
+format. Instead, the implementation may truncate it to the significant
+characters or report an error if the symbol identifier is too long. The
+implementation may also limit the count of prefix characters and report an
+error if the symbol prefix is too long. The limits should, however, not depend
+on the length of the symbol name (i.e. the maximum length of <sym-name-prefix>
+and <sym-name-identifier> should be independent).
+
+While the SYM format supports both, uppercase and lowercase letters, the
+implementation may process <symbol-name> case insensitive on input (on output,
+such an implementation should chose uppercase letters). In addition, an
+implementation may report an error if <sym-name-identifier> consists of
+unsupported character sequences (e.g. occurence of a dollar-sign or a leading
+digit).
+
+As a <sym-name> always starts with a '@' prefix, whitespace before a symbol
+name is optional.
+
+There is no particular order of symbol names required in a <sym-name-sequence>.
+In addition, symbol names do not need to be unique and are simply reassigned to
+the current value on multiple occurences.

@@ -1,0 +1,183 @@
+
+===============================================================================
+ ____      _                   _____                         
+|  _ \ ___| |_ _ __ ___       |  ___| __ __ _ _ __ ___   ___ 
+| |_) / _ \ __| '__/ _ \ _____| |_ | '__/ _` | '_ ` _ \ / _ \
+|  _ <  __/ |_| | | (_) |_____|  _|| | | (_| | | | | | |  __/
+|_| \_\___|\__|_|  \___/      |_|  |_|  \__,_|_| |_| |_|\___|
+
+
+FORMAT - Retro-Frame Data Format Specifications
+
+PCS - Packed Character String Text Data Format (5043)
+
+Repository:  <http://source.retro-frame.net/format>
+File:        /spec/rfdf-pcs.txt//
+Version:     01.00!00
+Compliance:  Retro-Frame 1.0
+License:     MIT
+
+Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+
+
+Change history
+-------------------------------------------------------------------------------
+
+2026-02-14 : 01.00!00 : Ingo
+
+  Draft.
+
+
+Contents
+-------------------------------------------------------------------------------
+
+1. INTRODUCTION
+   1.1  Background
+   1.2  Scope
+   1.3  References
+
+2. OVERVIEW
+
+3. BINARY DATA FORMAT
+   3.1  Characteristics
+   3.2  Syntax of version 53:3F
+   3.3  Semantics
+
+
+
+1. INTRODUCTION
+===============================================================================
+
+
+1.1 Background
+-------------------------------------------------------------------------------
+
+[RETRO-FRAME] is a Retro-Endeavor that provides [COMMON DOCUMENTATION] (i.e.
+definitions, guidelines, templates and generic specifications) as well as
+topic-related specifications (covered by individual repositories like this
+one related to data format specifications) which are intended for use in
+retrospective programming and may be used as a whole or partially for other
+purposes.
+
+The Retro-Frame Data Format Specifications comprise binary and text data
+formats which may be implemented by a program (e.g. as file formats) and may
+be used by other specifications.
+
+
+1.2 Scope
+-------------------------------------------------------------------------------
+
+This document specifies the Packed Character String Text Data Format (PCS) data
+format of the type 5043 which may be used to represent a text data format in a
+binary stream.
+
+
+1.3 References
+-------------------------------------------------------------------------------
+
+[COMMON DOCUMENTATION]
+Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
+
+[RETRO-FRAME]
+Retro-Frame homepage, see <http://source.retro-frame.net/>.
+
+
+
+2. OVERVIEW
+===============================================================================
+
+The Packed Character String Text Data Format (PCS) data format represents an
+arbitrary text data format in Packed Character String encoding (see [COMMON
+DOCUMENTATION], /spec/rf-char.txt//, chapter 5.4).
+
+Unlike the Magix Prefix (see /spec/rfdf-rfff.txt) this data format must occur
+only where a binary data format is expected (i.e. not at the beginning of a
+file and not in a text stream) and the character encoding is fixed. Unlike the
+Unspecified Text data format (see /spec/rfdf-text.txt), the text stream must
+represent a text data format and thus start with a text data format identifier.
+
+Note that although the format identifier appears as "PCS?" the ASCII domain,
+PCS is a binary data format (if it was a text data format, a solidus '/' would
+be required after "PCS"). In a file, the ASCII encoding of "RFFFPCS?" would be
+a valid header to represent a text data format in PCS encoding in a binary
+stream.
+
+
+3. BINARY DATA FORMAT
+===============================================================================
+
+
+3.1 Characteristics
+-------------------------------------------------------------------------------
+
+PCS is an optionally self-delimiting binary format.
+
+If self-delimited, the value 0xFF represents the end of the text stream.
+
+The only valid format version is 53:3F.
+
+
+3.2 Syntax of version 53:3F
+-------------------------------------------------------------------------------
+
+PCS_IDENTIFIER format:
+
+   2 BYTES  FORMAT_TYPE           : UINT-16BE = 5043
+   1 BYTE   FORMAT_VERSION_MAJOR  : UINT-8 = 0x53
+   1 BYTE   FORMAT_VERSION_MINOR  : UINT-8 = 0x3F
+
+PCS_TEXT_FORMAT:
+
+   ? BYTES  PCS_CODEPOINT  : PCS
+     ...
+   ? BYTES  PCS_CODEPOINT  : PCS
+
+PCS_BODY:
+
+   ? BYTES  PCS_TEXT_FORMAT  ; Retro-Frame text data format expected
+ [ 1 BYTE   PCS_END ]        : UINT-8 = 0xFF
+
+PCS format:
+
+   4  BYTES  PCS_IDENTIFIER
+   ?  BYTES  PCS_BODY
+
+
+3.3 Semantics
+-------------------------------------------------------------------------------
+
+The PCS data format has no effect by itself other than expecting a Retro-Frame
+text DATA FORMAT. It may appear in a binary stream when a binary data format is
+expected. The text data format must be encoded as a Packed Character String
+(see [COMMON DOCUMENTATION], /spec/rf-char.txt//, chapter 5.4).
+
+Each Packed Character String encoded codepoint is a sequence of 1, 2 or 3 bytes
+where the first byte is in the range 0x00..0xFD. Codes in the range 0x00..0x7F
+represent a single ASCII codepoint.
+
+If the format is (optionally) expected self-delimited, the value 0xFF as the
+first byte of a codepoint indicates the end of the text stream. Otherwise, it
+is considered an invalid encoding.
+
+Note that the value 0xFE as the first byte of a codepoint is always considered
+an invalid encoding.

@@ -1,0 +1,579 @@
+
+===============================================================================
+ ____      _                   _____                         
+|  _ \ ___| |_ _ __ ___       |  ___| __ __ _ _ __ ___   ___ 
+| |_) / _ \ __| '__/ _ \ _____| |_ | '__/ _` | '_ ` _ \ / _ \
+|  _ <  __/ |_| | | (_) |_____|  _|| | | (_| | | | | | |  __/
+|_| \_\___|\__|_|  \___/      |_|  |_|  \__,_|_| |_| |_|\___|
+
+
+FORMAT - Retro-Frame Data Format Specifications
+
+CP - Codepage (4350)
+
+Repository:  <http://source.retro-frame.net/format>
+File:        /spec/rfdf-cp.txt//
+Version:     01.00!00
+Compliance:  Retro-Frame 1.0
+License:     MIT
+
+Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+
+
+Change history
+-------------------------------------------------------------------------------
+
+2026-02-14 : 01.00!00 : Ingo
+
+  Draft.
+
+
+Contents
+-------------------------------------------------------------------------------
+
+1. INTRODUCTION
+   1.1  Background
+   1.2  Scope
+   1.3  References
+
+2. OVERVIEW
+
+3. BINARY DATA FORMAT
+   3.1  Characteristics
+   3.2  Syntax of version 31:30
+   3.3  Syntax of version 32:30
+   3.4  Syntax of version 33:30
+   3.5  Syntax of version 34:30
+   3.6  Syntax of version 34:31
+   3.7  Semantics
+
+
+
+1. INTRODUCTION
+===============================================================================
+
+
+1.1 Background
+-------------------------------------------------------------------------------
+
+[RETRO-FRAME] is a Retro-Endeavor that provides [COMMON DOCUMENTATION] (i.e.
+definitions, guidelines, templates and generic specifications) as well as
+topic-related specifications (covered by individual repositories like this
+one related to data format specifications) which are intended for use in
+retrospective programming and may be used as a whole or partially for other
+purposes.
+
+The Retro-Frame Data Format Specifications comprise binary and text data
+formats which may be implemented by a program (e.g. as file formats) and may
+be used by other specifications.
+
+
+1.2 Scope
+-------------------------------------------------------------------------------
+
+This document specifies the Codepage (CP) data format of the type 4350 which
+may be used to represent a single codepage in binary format.
+
+
+1.3 References
+-------------------------------------------------------------------------------
+
+[COMMON DOCUMENTATION]
+Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
+
+[RETRO-FRAME]
+Retro-Frame homepage, see <http://source.retro-frame.net/>.
+
+[UNICODE]
+The Unicode(R) Standard, The Unicode Consortium, for latest version see
+<https://www.unicode.org/versions/latest/>.
+
+
+
+2. OVERVIEW
+===============================================================================
+
+In modern world, the leading character set is [UNICODE], which is encoded by a
+set of standardized UTF-based character encodings (note that Retro-Frame
+characters are a superset of Unicode but with a different character encoding
+scheme).
+
+However, in earlier times, multiple character sets and character encodings
+existed.
+
+While most of those character sets were encoded by a single byte (and thus
+consisted of no more than 256 codepoints), some character sets were represented
+by a single byte or a sequence of two bytes (e.g. Shift JIS). In addition, some
+statful encodings existed which used control characters like SHIFT-OUT and
+SHIFT-IN to switch between character sets.
+
+As it seems infeasible to implement all of the possible (often vendor-specific)
+codepages, the CP data format is intended define a single codepage by an easy
+to load binary format which may be translated from a CPSPEC data format (see
+/spec/rfdf-cpspec.txt//).
+
+In order to support a wide range of possibly very limited environments, several
+format versions with increasing complexity are specified:
+
+- Version 31:30 only provides a single table with simple mappings.
+- Version 32:30 introduces simple table shifts between two tables.
+- Version 33:30 introduces arbitrary table shifts and multibyte encodings.
+- Version 34:30 introduces not invertible codepoint sequences.
+- Version 34:31 introduces invertible codepoint sequences.
+
+The format versions are fully backward compatible (i.e. a valid format of a
+specific version is always also a valid format of a higher version). Regarding
+minor versions, forward compatibility is used to feature inversion of codepoint
+sequences.
+
+
+
+3. BINARY DATA FORMAT
+===============================================================================
+
+
+3.1 Characteristics
+-------------------------------------------------------------------------------
+
+CP is a not self-delimiting binary format. As the maximum number of bytes is
+implicitly limited by design, the format cannot be arbitrary long without
+eventually causing a format error. The maximum number of bytes of a valid
+format body are:
+
+- Version 31:30: 768 bytes.
+- Version 32:30: 1536 bytes.
+- Version 33:30: 409600 bytes.
+- Version 34:30: 4096000 bytes.
+- Version 34:31: 4096000 bytes.
+
+The format major version is restricted to the range 31..39. The format minor
+version is restricted to the range 30..39.
+
+
+3.2 Syntax of version 31:30
+-------------------------------------------------------------------------------
+
+CP_IDENTIFIER format:
+
+   2 BYTES  FORMAT_TYPE           : UINT-16BE = 0x4350
+   1 BYTE   FORMAT_VERSION_MAJOR  : UINT-8 = 0x31
+   1 BYTE   FORMAT_VERSION_MINOR  : UINT-8 = 0x30
+
+CP_RANGE format:
+
+   1 BYTE   CP_RANGE_PREFIX  : UINT-8 = 0xFF
+   1 BYTE   CP_RANGE_SIZE    : UINT-8 = range - 2 <= 0xFE
+
+CP_ESCAPE format:
+
+   1 BYTE   CP_ESCAPE_PREFIX  : UINT-8 = 0xFE, fEscape = 1
+   1 BYTE   CP_ESCAPE         : UINT-8 = escapeCode ; see semantics
+
+CP_TABLE_ENTRY format:
+
+ [ 2 BYTES  CP_RANGE ]    : range = 1
+ [ 2 BYTES  CP_ESCAPE ]   : fEscape = 0, code = code + range
+ [ !fEscape ]
+   ? BYTES  CP_CODEPOINT  : PCS, code = code + range
+
+CP_TABLE format:
+
+   ?  BYTES  CP_TABLE_ENTRY[0]
+      ...
+   ?  BYTES  CP_TABLE_ENTRY[n - 1]
+
+CP format:
+
+   4  BYTES  CP_IDENTIFIER
+   ?  BYTES  CP_TABLE
+
+
+3.3 Syntax of version 32:30
+-------------------------------------------------------------------------------
+
+CP_IDENTIFIER format:
+
+   2 BYTES  FORMAT_TYPE           : UINT-16BE = 0x4350
+   1 BYTE   FORMAT_VERSION_MAJOR  : UINT-8 = 0x32
+   1 BYTE   FORMAT_VERSION_MINOR  : UINT-8 = 0x30
+
+CP_RANGE format:
+
+   1 BYTE   CP_RANGE_PREFIX  : UINT-8 = 0xFF
+   1 BYTE   CP_RANGE_SIZE    : UINT-8 = range - 2 <= 0xFE
+
+CP_TABLE_TERMINATOR format:
+
+   1 BYTE   CP_RANGE_PREFIX  : UINT-8 = 0xFF
+   1 BYTE   CP_TERMINATOR    : UINT-8 = 0xFF
+
+CP_ESCAPE format:
+
+   1 BYTE   CP_ESCAPE_PREFIX        : UINT-8 = 0xFE, fEscape = 1
+   1 BYTE   CP_ESCAPE               : UINT-8 = escapeCode ; see semantics
+ [ escapeCode >= 0x40 ]
+            MASK 0x3F CP_TAB_INDEX  : = tabIndex <= 1
+
+CP_TABLE_ENTRY format:
+
+ [ 2 BYTES  CP_RANGE ]    : range = 1
+ [ 2 BYTES  CP_ESCAPE ]   : fEscape = 0, code = code + range
+ [ !fEscape ]
+   ? BYTES  CP_CODEPOINT  : PCS, code = code + range
+
+CP_TABLE format:
+
+   ?  BYTES  CP_TABLE_ENTRY[0]      : UINT code = 0
+      ...
+   ?  BYTES  CP_TABLE_ENTRY[n - 1]
+ [ code <= 0xFF ]
+   2  BYTES  CP_TABLE_TERMINATOR
+
+CP_LAST_TABLE format:
+
+   ?  BYTES  CP_TABLE_ENTRY[0]      : UINT code = 0
+      ...
+   ?  BYTES  CP_TABLE_ENTRY[n - 1]
+
+CP format:
+
+   4  BYTES  CP_IDENTIFIER
+ [ ?  BYTES  CP_TABLE ]
+   ?  BYTES  CP_LAST_TABLE
+
+
+3.4 Syntax of version 33:30
+-------------------------------------------------------------------------------
+
+CP_IDENTIFIER format:
+
+   2 BYTES  FORMAT_TYPE           : UINT-16BE = 0x4350
+   1 BYTE   FORMAT_VERSION_MAJOR  : UINT-8 = 0x33
+   1 BYTE   FORMAT_VERSION_MINOR  : UINT-8 = 0x30
+
+CP_RANGE format:
+
+   1 BYTE   CP_RANGE_PREFIX  : UINT-8 = 0xFF
+   1 BYTE   CP_RANGE_SIZE    : UINT-8 = range - 2 <= 0xFE
+
+CP_TABLE_TERMINATOR format:
+
+   1 BYTE   CP_RANGE_PREFIX  : UINT-8 = 0xFF
+   1 BYTE   CP_TERMINATOR    : UINT-8 = 0xFF
+
+CP_ESCAPE format:
+
+   1 BYTE   CP_ESCAPE_PREFIX        : UINT-8 = 0xFE, fEscape = 1
+   1 BYTE   CP_ESCAPE               : UINT-8 = escapeCode ; see semantics
+ [ escapeCode >= 0x40 ]
+            MASK 0x3F CP_TAB_INDEX  : = tabIndex ; see semantics
+ [ 0x18 <= escapeCode <= 0x1F ]
+   ? BYTES  CP_START_VALUE          : PCS = startValue ; see semantics
+
+CP_TABLE_ENTRY format:
+
+ [ 2 BYTES  CP_RANGE ]    : range = 1
+ [ ? BYTES  CP_ESCAPE ]   : fEscape = 0, code = code + range
+ [ !fEscape ]
+   ? BYTES  CP_CODEPOINT  : PCS, code = code + range
+
+CP_TABLE format:
+
+   ?  BYTES  CP_TABLE_ENTRY[0]      : UINT code = 0
+      ...
+   ?  BYTES  CP_TABLE_ENTRY[n - 1]
+ [ code <= 0xFF ]
+   2  BYTES  CP_TABLE_TERMINATOR
+
+CP_LAST_TABLE format:
+
+   ?  BYTES  CP_TABLE_ENTRY[0]      : UINT code = 0
+      ...
+   ?  BYTES  CP_TABLE_ENTRY[n - 1]
+ [ code <= 0xFF ]
+ [ 2  BYTES  CP_TABLE_TERMINATOR ]
+
+CP format:
+
+   4  BYTES  CP_IDENTIFIER
+   ?  BYTES  CP_TABLE
+      ...
+   ?  BYTES  CP_TABLE
+   ?  BYTES  CP_LAST_TABLE
+
+
+3.5 Syntax of version 34:30
+-------------------------------------------------------------------------------
+
+CP_IDENTIFIER format:
+
+   2 BYTES  FORMAT_TYPE           : UINT-16BE = 0x4350
+   1 BYTE   FORMAT_VERSION_MAJOR  : UINT-8 = 0x34
+   1 BYTE   FORMAT_VERSION_MINOR  : UINT-8 = 0x30
+
+CP_RANGE format:
+
+   1 BYTE   CP_RANGE_PREFIX  : UINT-8 = 0xFF
+   1 BYTE   CP_RANGE_SIZE    : UINT-8 = range - 2 <= 0xFE
+
+CP_TABLE_TERMINATOR format:
+
+   1 BYTE   CP_RANGE_PREFIX  : UINT-8 = 0xFF
+   1 BYTE   CP_TERMINATOR    : UINT-8 = 0xFF
+
+CP_ESCAPE format:
+
+   1 BYTE   CP_ESCAPE_PREFIX         : UINT-8 = 0xFE, fEscape = 1
+   1 BYTE   CP_ESCAPE                : UINT-8 = escapeCode ; see semantics
+ [ escapeCode >= 0x40 ]
+            MASK 0x3F CP_TAB_INDEX   : = tabIndex ; see semantics
+ [ 0x20 <= escapeCode <= 0x3F ]
+            MASK 0x0F CP_SEQ_LEN     : = m - 1
+   ? BYTES  CP_SEQ_CODEPOINT[0]      : PCS ; not invertible, see semantics
+            ...
+   ? BYTES  CP_SEQ_CODEPOINT[m - 1]  : PCS ; not invertible, see semantics
+ [ 0x18 <= escapeCode <= 0x1F ]
+   ? BYTES  CP_START_VALUE           : PCS = startValue ; see semantics
+
+CP_TABLE_ENTRY format:
+
+ [ 2 BYTES  CP_RANGE ]    : range = 1
+ [ ? BYTES  CP_ESCAPE ]   : fEscape = 0, code = code + range
+ [ !fEscape ]
+   ? BYTES  CP_CODEPOINT  : PCS, code = code + range
+
+CP_TABLE format:
+
+   ?  BYTES  CP_TABLE_ENTRY[0]      : UINT code = 0
+      ...
+   ?  BYTES  CP_TABLE_ENTRY[n - 1]
+ [ code <= 0xFF ]
+   2  BYTES  CP_TABLE_TERMINATOR
+
+CP_LAST_TABLE format:
+
+   ?  BYTES  CP_TABLE_ENTRY[0]      : UINT code = 0
+      ...
+   ?  BYTES  CP_TABLE_ENTRY[n - 1]
+ [ code <= 0xFF ]
+ [ 2  BYTES  CP_TABLE_TERMINATOR ]
+
+CP format:
+
+   4  BYTES  CP_IDENTIFIER
+   ?  BYTES  CP_TABLE
+      ...
+   ?  BYTES  CP_TABLE
+   ?  BYTES  CP_LAST_TABLE
+
+
+3.6 Syntax of version 34:31
+-------------------------------------------------------------------------------
+
+CP_IDENTIFIER format:
+
+   2 BYTES  FORMAT_TYPE           : UINT-16BE = 0x4350
+   1 BYTE   FORMAT_VERSION_MAJOR  : UINT-8 = 0x34
+   1 BYTE   FORMAT_VERSION_MINOR  : UINT-8 = 0x31
+
+CP_RANGE format:
+
+   1 BYTE   CP_RANGE_PREFIX  : UINT-8 = 0xFF
+   1 BYTE   CP_RANGE_SIZE    : UINT-8 = range - 2 <= 0xFE
+
+CP_TABLE_TERMINATOR format:
+
+   1 BYTE   CP_RANGE_PREFIX  : UINT-8 = 0xFF
+   1 BYTE   CP_TERMINATOR    : UINT-8 = 0xFF
+
+CP_ESCAPE format:
+
+   1 BYTE   CP_ESCAPE_PREFIX         : UINT-8 = 0xFE, fEscape = 1
+   1 BYTE   CP_ESCAPE                : UINT-8 = escapeCode ; see semantics
+ [ escapeCode >= 0x40 ]
+            MASK 0x3F CP_TAB_INDEX   : = tabIndex ; see semantics
+ [ 0x20 <= escapeCode <= 0x3F ]
+            MASK 0x0F CP_SEQ_LEN     : = m - 1
+ [ 0x20 <= escapeCode <= 0x2F ]
+   ? BYTES  CP_SEQ_CODEPOINT[0]      : PCS ; not invertible, see semantics
+            ...
+   ? BYTES  CP_SEQ_CODEPOINT[m - 1]  : PCS ; not invertible, see semantics
+ [ 0x30 <= escapeCode <= 0x3F ]
+   ? BYTES  CP_SEQ_CODEPOINT[0]      : PCS ; invertible, see semantics
+            ...
+   ? BYTES  CP_SEQ_CODEPOINT[m - 1]  : PCS ; invertible, see semantics
+ [ 0x18 <= escapeCode <= 0x1F ]
+   ? BYTES  CP_START_VALUE           : PCS = startValue ; see semantics
+
+CP_TABLE_ENTRY format:
+
+ [ 2 BYTES  CP_RANGE ]    : range = 1
+ [ ? BYTES  CP_ESCAPE ]   : fEscape = 0, code = code + range
+ [ !fEscape ]
+   ? BYTES  CP_CODEPOINT  : PCS, code = code + range
+
+CP_TABLE format:
+
+   ?  BYTES  CP_TABLE_ENTRY[0]      : UINT code = 0
+      ...
+   ?  BYTES  CP_TABLE_ENTRY[n - 1]
+ [ code <= 0xFF ]
+   2  BYTES  CP_TABLE_TERMINATOR
+
+CP_LAST_TABLE format:
+
+   ?  BYTES  CP_TABLE_ENTRY[0]      : UINT code = 0
+      ...
+   ?  BYTES  CP_TABLE_ENTRY[n - 1]
+ [ code <= 0xFF ]
+ [ 2  BYTES  CP_TABLE_TERMINATOR ]
+
+CP format:
+
+   4  BYTES  CP_IDENTIFIER
+   ?  BYTES  CP_TABLE
+      ...
+   ?  BYTES  CP_TABLE
+   ?  BYTES  CP_LAST_TABLE
+
+
+3.7 Semantics
+-------------------------------------------------------------------------------
+
+A CP_TABLE_ENTRY represents the mapping rule for the current code unless a
+CP_RANGE is given in which case the rule applies to code..(code + range - 1).
+
+The mapping rule is either a single PCS character or an escape sequence which
+is introduced by FE, followed by an escapeCode, and has the following meanings:
+
+  escapeCode  read   write  attribute   description
+  ----------  -----  -----  ----------  -----------------------------------
+  00          1.0    1.0    n/a         codepoint = INVALID
+  01          1.0    never  n/a         codepoint = INVALID
+  02          1.0    1.0    n/a         codepoint = IGNORE
+  03          1.0    never  n/a         codepoint = IGNORE
+  04          1.0    1.0    n/a         codepoint = code (identity)
+  05          1.0    never  n/a         codepoint = code (identity)
+  06          2.0    2.0    n/a         codepoint = SHIFT-IN
+  07          2.0    never  n/a         codepoint = SHIFT-IN
+  08          3.0    3.0    n/a         SHIFT-OUT INVALID
+  09          3.0    never  n/a         SHIFT-OUT INVALID
+  0A          3.0    3.0    n/a         SHIFT-OUT IGNORE
+  0B          3.0    never  n/a         SHIFT-OUT IGNORE
+  0C          3.0    3.0    n/a         SHIFT-OUT LATIN-1 (0x0F = SHIFT-IN)
+  0D          3.0    never  n/a         SHIFT-OUT LATIN-1 (0x0F = SHIFT-IN)
+  0E          3.0    3.0    tabIndex    SHIFT-OUT table[tabIndex + 0x40]
+  0F          3.0    never  tabIndex    SHIFT-OUT table[tabIndex + 0x40]
+  10          3.0    3.0    n/a         MULTIBYTE INVALID
+  11          3.0    never  n/a         MULTIBYTE INVALID
+  12          3.0    3.0    n/a         MULTIBYTE IGNORE
+  13          3.0    never  n/a         MULTIBYTE IGNORE
+  14          3.0    3.0    n/a         MULTIBYTE LATIN-1
+  15          3.0    never  n/a         MULTIBYTE LATIN-1
+  16          3.0    3.0    tabIndex    MULTIBYTE table[tabIndex + 0x40]
+  17          3.0    never  tabIndex    MULTIBYTE table[tabIndex + 0x40]
+  18          1.0    1.0    startValue  ITERATE RANGE startValue..
+  19          1.0    never  startValue  ITERATE RANGE startValue..
+  1A          3.0    3.0    startValue  ITERATE-LE RANGE startValue..
+  1B          3.0    never  startValue  ITERATE-LE RANGE startValue..
+  1C          3.0    3.0    startValue  ITERATE-LE-32 RANGE startValue..
+  1D          3.0    never  startValue  ITERATE-LE-32 RANGE startValue..
+  1E          3.0    3.0    startValue  ITERATE-LE-16 RANGE startValue..
+  1F          3.0    never  startValue  ITERATE-LE-16 RANGE startValue..
+  20..2F      4.0    4.0    sequence[]  not invertible CODEPOINT SEQUENCE
+  30..3F      4.0    4.1    sequence[]  invertible CODEPOINT SEQUENCE
+  40..41      2.0    2.0    n/a         SHIFT-OUT table[tabIndex]
+  42..7F      3.0    3.0    n/a         SHIFT-OUT table[tabIndex]
+  80..BF      3.0    3.0    n/a         MULTIBYTE table[tabIndex]
+  C0..FF      never  never  n/a         reserved
+
+An escape code is valid and recognized on read for all format versions starting
+from the one given in the "read" column. An escape code may be written for all
+format versions starting from the one given in the "write column. Some escape
+sequences have additional attributes as specified by the syntax.
+
+The meaning of the descriptions is as follows:
+
+- INVALID advises that the code or sequence of codes does not represent a valid
+  codepoint. Such codes or sequences of codes may result in a decoding fail, be
+  ignored or processed as direct encodings.
+
+- IGNORE advises that the code or sequence of codes should be ignored on
+  decoding.
+
+- SHIFT-OUT advises to switch to a codepage table referenced by INVALID,
+  IGNORE or LATIN-1 (implicit tables) respectively tabIndex (explicit table).
+  Note that format version 2.0 only supports tabIndex 0 or 1.
+
+- SHIFT-IN advises to return to the codepage table which was selected before
+  the last SHIFT-OUT. Note that, in general, the ASCII code 0x0F is not
+  considered a SHIFT-IN in terms of the CP format except for a SHIFT-OUT
+  LATIN-1 (FE 0C or FE 0D) in which case the code 0x0F of the implicit LATIN-1
+  codepage is recognized as a SHIFT-IN. After a SHIFT-IN or before any
+  SHIFT-OUT, a subsequent SHIFT-IN has no effect.
+
+- MULTIBYTE makes the current code part of a sequence of codes which stops if
+  the first CP_TABLE_ENTRY is reached which is not a MULTIBYTE escape sequence.
+  The codepage which is to be used for the next code byte is referenced by
+  INVALID, IGNORE or LATIN-1 (implicit tables) respectively tabIndex (explicit
+  table).
+
+- RANGE maps a range of codes to a range of codepoints, starting from
+  startValue. Multiple ranges as well as single codes may be combined over one
+  or even more MULTIBYTE sequences. In this case, the endianness of the codes
+  must be known:
+
+  - ITERATE builds the range from the first code to the last one.
+  - ITERATE-LE builds the range from the last code to the first one.
+  - ITERATE-LE-32 makes groups of up to four code bytes little-endian but
+    consecutive groups are treatened in order (i.e. like ITERATE).
+  - ITERATE-LE-16 makes groups of up to two code bytes little-endian but
+    consecutive groups are treatened in order (i.e. like ITERATE).
+
+  Example:
+
+  00..01 MULTIBYTE C0 MULTIBYTE 07..09 ITERATE-LE-16 0300 leads to the
+  following mappings:
+
+  - The code sequence 00 C0 07 is mapped to the codepoint 0300.
+  - The code sequence 01 C0 07 is mapped to the codepoint 0301.
+  - The code sequence 00 C0 08 is mapped to the codepoint 0302.
+  - The code sequence 01 C0 08 is mapped to the codepoint 0303.
+  - The code sequence 00 C0 09 is mapped to the codepoint 0304.
+  - The code sequence 01 C0 09 is mapped to the codepoint 0305.
+
+- CODEPOINT SEQUENCE maps one or more (up to 16) codepoints to a single code
+  which are not inverted (i.e. mapped back) on encoding unless the CODEPOINT
+  SEQUENCE is marked invertible which is a forward compatibility feature. If
+  invertible, a CODEPOINT SEQUENCE which exists of only one codepoint (i.e.
+  FE 30 if format version 4.1 or higher is used) is equivalent to a simple
+  codepoint.
+
+For each table (i.e. CP_TABLE or CP_LAST_TABLE), code must never exceed 0x100.
+The index of a table (tabIndex) starts with 0 for the first table and is
+incremented by one for each subsequent table. There must be no more tables as
+referenced by a tabIndex. If a table is referenced by a tabIndex which does not
+occur in the data format, this table is implicitly set to all invalid (i.e. FF
+FE FE 00). If a table is terminated by a CP_TABLE_TERMINATOR, all remaining
+codes are set to invalid (i.e. FF 00 if code is 0xFF or FF (FE - code) FF 00 if
+code is less than 0xFF).
