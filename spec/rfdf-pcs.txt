@@ -9,11 +9,11 @@
 
 FORMAT - Retro-Frame Data Format Specifications
 
-PCS - Packed Character String Text Data Format (5043)
+PCS - Packed Character String Text (5043)
 
 Repository:  <http://source.retro-frame.net/format>
 File:        /spec/rfdf-pcs.txt//
-Version:     01.00!00
+Version:     01.00!01
 Compliance:  Retro-Frame 1.0
 License:     MIT
 
@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-14 : 01.00!00 : Ingo
+2026-02-16 : 01.00!00 : Ingo
 
   Draft.
 
@@ -87,9 +87,9 @@ be used by other specifications.
 1.2 Scope
 -------------------------------------------------------------------------------
 
-This document specifies the Packed Character String Text Data Format (PCS) data
-format of the type 5043 which may be used to represent a text data format in a
-binary stream.
+This document specifies the Packed Character String Text (PCS) data format of
+the type 5043 which may be used to represent a text data format in a binary
+stream.
 
 
 1.3 References
@@ -106,9 +106,9 @@ Retro-Frame homepage, see <http://source.retro-frame.net/>.
 2. OVERVIEW
 ===============================================================================
 
-The Packed Character String Text Data Format (PCS) data format represents an
-arbitrary text data format in Packed Character String encoding (see [COMMON
-DOCUMENTATION], /spec/rf-char.txt//, chapter 5.4).
+The Packed Character String Text (PCS) data format represents an arbitrary text
+data format in Packed Character String encoding (see [COMMON DOCUMENTATION],
+/spec/rf-char.txt//, chapter 5.4).
 
 Unlike the Magix Prefix (see /spec/rfdf-rfff.txt) this data format must occur
 only where a binary data format is expected (i.e. not at the beginning of a

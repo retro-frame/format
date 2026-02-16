@@ -2,7 +2,7 @@
 
 **Endeavor: Retro-Frame**  
 **Repository: \<[http://source.retro-frame.net/format](http://source.retro-frame.net/format)\>**  
-**Version: 1.0!0 (alpha)**  
+**Version: 1.0!1 (alpha, dev)**  
 **Compliance: Retro-Frame 1.0**  
 **License: MIT (see `LICENSE`)**  
 
@@ -87,6 +87,9 @@ Currently, the following data format specification documents are provided:
 
 * `spec/rfdf-cpspec.txt` provides the specification of the Codepage
   Specifications ("CP-SPEC") format.
+
+* `spec/rfdf-pcs.txt` provides the specification of the Packed Character String
+  Text (5043) format.
 
 * `spec/rfdf-rfff.txt` provides the specification of the Retro-Frame Magic
   Prefix (5246 / "RFFF") format.

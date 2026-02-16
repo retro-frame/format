@@ -13,7 +13,7 @@ General Documentation
 
 Repository:  <http://source.retro-frame.net/format>
 File:        /doc/rf-format.txt
-Version:     01.00!00
+Version:     01.00!01
 Compliance:  Retro-Frame 1.0
 License:     MIT
 
@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-14 : 01.00!00 : Ingo
+2026-02-16 : 01.00!00 : Ingo
 
   Draft.
 
@@ -297,7 +297,7 @@ Thus, the entire format identifier of a binary format consists of 4 bytes.
   2FXX  n/a         Reserved for the text data format Magix Prefix in the ASCII
                     domain ("RFFF/")
   4350  CP          Codepage
-  5043  PCS         Packed Character String Text Data Format
+  5043  PCS         Packed Character String Text
   5246  RFFF        Magic Prefix
   AEDC  AEDC        Asymmetrically Encrypted Data Collection
   EE2B  VEE2B       Virtual Execution Environment #2 Binary
@@ -314,7 +314,7 @@ Thus, the entire format identifier of a binary format consists of 4 bytes.
 -------------------------------------------------------------------------------
 
 Each text data format is represented by an identifier, consisting of the format
-type, followed by a version sequence:
+type, followed by a solidus ('/') and a format version:
 
 <format-type>:
 
@@ -359,7 +359,7 @@ text format specification determines the structure of the text data.
 However, in order to simplify understanding and processing of text formats, the
 following standard structure shall be used whenever possible:
 
-<standard-text-format-structure>:
+<standard-text-format>:
 
   <body> | <format-identifier>_<header>_<body> [_<footer> ]
 
@@ -472,17 +472,17 @@ In this chapter, file name extensions are associated with the formats. The
 recommended standard file name extensions have no more than six characters and
 are chosen as best as possible so that they are not already used for other file
 formats. However, for the short file name extensions, which have no more than
-three characters, collisions are inavoidable. The standard file name extensions
-are given in lowercase letters while the short file name extensions are given
-in uppercase letters.
+three characters, collisions are inavoidable. The short file name extensions
+are always represented in uppercase letters.
 
 For binary files (i.e. files using a binary data format), the data format shall
-always be determined by a magic prefix, if present. In this case, the file name
-extension is only used to indicate the format to the user.
+be determined by a magic prefix, if provided (note that the RFFF magic prefix
+is used by all Retro-Frame binary data formats for that purpose). However, it
+may be required that the suffix matches the determined data format.
 
-For files in a text data format without a Retro-Frame file header, or files in
-a binary data format which do not provide a magic prefix, the data format may
-be determined by the suffix.
+For files in a text data format without a Retro-Frame file header, or for non-
+Retro-Frame binary data formats which do not provide a magic prefix, the data
+format may be determined by the suffix.
 
 A program which allows filtering a directory listing when selecting a file
 (e.g. in a file open dialog) should provide both, the standard and the short
