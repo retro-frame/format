@@ -28,12 +28,11 @@ Beside execution environments and character encodings, data formats play an
 important role in retro programming (e.g. when dealing with files or network
 protocols).
 
-On the one hand, standardized or vendor-specific data formats (external
-formats) may be used in a program. On the other hand, additional data formats
-may be invented by a Retro-Endeavor for its own use (internal formats). The
-intention of this repository is to provide specifications of internal formats
-as well as of external formats where no, incomplete or poor specifications are
-publicly available.
+Data formats may be invented by a Retro-Endeavor for its own use (denoted as
+internal data formats). On the other hand, standardized or vendor-specific
+data formats (denoted as external data formats) may be used by a program. The
+intention of this repository is to provide specifications of all Retro-Frame
+data formats and descriptions of selected external data formats.
 
 **Retro-Frame** is a Retro-Endeavor that provides common documentation (i.e.
 definitions, guidelines, templates and generic specifications) as well as
@@ -57,17 +56,28 @@ individual data formats use a completely independent versioning scheme.
 
 ## 2. General data format documentation
 
-The directory `doc/` is intended to contain general data format documentation:
+The directory `doc/` contains the general data format documentation (i.e.
+definitions, guidelines and descriptions). Each document is prefixed by `rf-`
+and suffixed by `.txt`:
 
-* `doc/rf-format.txt` provides a list of all Retro-Frame data format
-  specifications as well as general data format specifications and guidelines.
+* `doc/rf-format.txt` provides a list of all Retro-Frame (i.e. internal) data
+  formats as well as general data format specifications and guidelines.
+
+Currently, descriptions of the following external (e.g. standardized or
+vendor-specific) data formats are provided:
+
+* `doc/rf-deflate.txt` provides a description of the **Deflate Compressed Data
+  Format**.
+
+* `doc/rf-zip.txt` provides a description of the **ZIP File Format
+  Specification**.
 
 
 ## 3. Data format specifications
 
-The directory `spec/` contains data format specifications. Each data format has
-a unique name which is the file name of the specification document, prefixed by
-`rfdf-` and suffixed by `.txt`.
+The directory `spec/` contains all Retro-Frame (i.e. internal) data format
+specifications. Each data format has a unique name which is the file name of
+the specification document, prefixed by `rfdf-` and suffixed by `.txt`.
 
 Currently, the following data format specification documents are provided:
 
@@ -106,6 +116,11 @@ Currently, the following data format specification documents are provided:
 
 ## 4. References
 
+### Deflate Compressed Data Format
+
+RFC: 1951 - DEFLATE Compressed Data Format Specification version 1.3, see
+\<[https://datatracker.ietf.org/doc/html/rfc1951](https://datatracker.ietf.org/doc/html/rfc1951)\>.
+
 ### Retro-Frame
 
 Retro-Frame homepage, see
@@ -115,3 +130,8 @@ Retro-Frame homepage, see
 
 Retro-Frame Common Documentation repository, see
 \<[http://source.retro-frame.net/common](http://source.retro-frame.net/common)\>.
+
+### ZIP File Format Specification
+
+APPNOTE.TXT - .ZIP File Format Specification, PKWARE Inc., see
+\<[http://www.pkware.com/appnote](http://www.pkware.com/appnote)\>.
