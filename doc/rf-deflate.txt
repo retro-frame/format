@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-17 : 01.00!01 : Ingo
+2026-02-21 : 01.00!01 : Ingo
 
   Draft.
 
@@ -57,6 +57,11 @@ Contents
    1.3  References
 
 2. OVERVIEW
+
+3. DEFLATE STAGES
+   3.1  LZ77 compression
+   3.2  Huffman encoding
+   3.3  Block format
 
 
 
@@ -82,7 +87,7 @@ be used by other specifications.
 1.2 Scope
 -------------------------------------------------------------------------------
 
-This document provides a Retro-Frame specification of the DEFLATE Compressed
+This document provides a Retro-Frame specification of the Deflate Compressed
 Data Format according to [RFC-1951].
 
 
@@ -103,3 +108,70 @@ RFC: 1951 - DEFLATE Compressed Data Format Specification version 1.3, see
 
 2. OVERVIEW
 ===============================================================================
+
+
+
+3. DEFLATE STAGES
+===============================================================================
+
+
+3.1 LZ77 compression
+-------------------------------------------------------------------------------
+
+The initial step of the input data (given as a UINT-8 sequence) is performed
+by an algorithm wich identifies identical sequences of a length from 3 to 258
+bytes within a sliding window of 32768 bytes according to the LZ77 compression
+(Lempel-Ziv 1977, the algorithms are not subject to this description of the
+data format):
+
+                          +------------------------------+
+                          |  32768 bytes sliding window  |
+  +-----------------------+------------------------------+------------------+
+  |  input data (UINT-8)                 <length>         <length>          |
+  +--------------------------------------^----------------^-----------------+
+                                         |    distance    | current index
+                                         +----------------+
+
+The position of the identical sequence within the sliding window is referenced
+by the backward distance relative to the current index (i.e. the byte preceding
+the current index has distance 1 and the maximum distance is 32768). Within the
+first 32767 bytes of the input data, the sliding window must be clipped (i.e.
+the distance must not exceed the input data). While the sequence must start
+within the sliding window, it may exceed it (i.e. overlap with the identical
+sequence starting at the current index).
+
+All references to identical sequences, given by the pair (distance, length),
+are intermediate information at this stage and may be stored at discretion. No
+more than one reference shall exist for each index. If more than one sequence
+was found in the sliding window, the longer sequence should be chosen (if the
+maximum length was found multiple times, smaller distances should be favored).
+
+Example:
+
+  index  input data (hex)  distance  length  comment
+  -----  ----------------  --------  ------  --------------------------------
+      0                00       n/a     n/a  identical sequence not possible
+      1                01       n/a     n/a  no identical sequence given
+      2                AA       n/a     n/a  no identical sequence given
+      3                BB       n/a     n/a  no identical sequence given
+      4                00       n/a     n/a  sequence 00 01 is too short
+      5                01       n/a     n/a  sequence 01 is too short
+      6                AF       n/a     n/a  no identical sequence given
+      7                00         3       5  sequence 00 01 AF 00 01 overlaps
+      8                01       n/a     n/a  part of sequence
+      9                AF       n/a     n/a  part of sequence
+     10                00       n/a     n/a  part of sequence
+     11                01       n/a     n/a  part of sequence
+     12                BE       n/a     n/a  no identical sequence given
+     13                AF         3       3  favor smaller distance
+     14                00       n/a     n/a  part of sequence
+     15                01       n/a     n/a  part of sequence
+     16                FF       n/a     n/a  no identical sequence given
+
+
+3.2 Huffman encoding
+-------------------------------------------------------------------------------
+
+3.3 Block format
+-------------------------------------------------------------------------------
+

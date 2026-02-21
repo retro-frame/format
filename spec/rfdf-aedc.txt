@@ -13,7 +13,7 @@ AEDC - Asymmetrically Encrypted Data Collection (AEDC)
 
 Repository:  <http://source.retro-frame.net/format>
 File:        /spec/rfdf-aedc.txt//
-Version:     01.00!00
+Version:     01.00!01
 Compliance:  Retro-Frame 1.0
 License:     MIT
 
@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-14 : 01.00!00 : Ingo
+2026-02-21 : 01.00!01 : Ingo
 
   Draft.
 
@@ -377,8 +377,9 @@ algorithm with following parameters:
   secret = hash (256 bit)
   iterations = 256
 
-The output may be represented in a user-friendly manner. Note that validation
-by hash is independent from STREAM_ID while validation by user depends on it.
+The output may be represented in a user-friendly manner (e.g. a textual
+representation of the binary verification value). Note that the hash is
+independent from STREAM_ID while the verification value depends on it.
 
 On decryption, a given receiver public / private key pair p[i] / k[i] must be
 given. In order to identify the index (respectively whether the key is part of
@@ -406,8 +407,9 @@ following parameters:
   secret = hash (256 bit)
   iterations = 256
 
-The output may be represented in a user-friendly manner. Note that validation
-by hash is independent from STREAM_ID while validation by user depends on it.
+The output may be represented in a user-friendly manner (e.g. a textual
+representation of the binary verification value). Note that the hash is
+independent from STREAM_ID while the verification value depends on it.
 
 After load of an AEDC_HEADER, it may be used to add additional seed to the
 PRNG. In this case it is recommended to apply a new nonce to the public file
