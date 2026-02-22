@@ -59,8 +59,8 @@ Contents
 2. OVERVIEW
 
 3. DEFLATE STAGES
-   3.1  LZ77 compression
-   3.2  Representation by codes and extra bits
+   3.1  Identifying identical sequences (LZ77 analysis)
+   3.2  Representation by codes and offsets
    3.3  Huffman encoding
    3.4  Block format
 
@@ -116,7 +116,7 @@ RFC: 1951 - DEFLATE Compressed Data Format Specification version 1.3, see
 ===============================================================================
 
 
-3.1 LZ77 compression
+3.1 Identifying identical sequences (LZ77 analysis)
 -------------------------------------------------------------------------------
 
 The initial processing of the input data (given as a UINT-8 sequence of bytes)
@@ -187,20 +187,21 @@ be chosen and in worst case, no identical sequences are found at all). However,
 on decompression, the full sliding window must be supported.
 
 
-3.2 Representation by codes and extra bits
+3.2 Representation by codes and offsets
 -------------------------------------------------------------------------------
 
-On the next stage, the result of the LZ77 compression is represented as codes
+On the next stage, the result of the LZ77 analysis is represented as codes
 considering the identical sequences found before (see chapter 3.1):
 
-- Codes 0..255 represent the corresponding original value (i.e. 0x00..0xFF) of
-  a single byte of the input data and are called literal codes.
+- Codes 0..255 are called literal codes and represent the corresponding
+  original values (i.e. 0x00..0xFF) of single bytes of the input data which
+  are not part of an identical sequence.
 
 - Code 256 is an end marker and reserved on this stage (see capter 3.4).
 
-- Codes 257..285 represent a reference to an identical sequence where the code
-  depends on the length of the triple (index, distance, length) and the codes
-  are thus called length codes.
+- Codes 257..285 are called length codes and represent a reference to an
+  identical sequence where the code depends on the length of the triple
+  (index, distance, length), see below.
 
 If a part of the input data is represented by a reference to an identical
 sequence, the corresponding 3 to 258 bytes are omitted (i.e. each part of the
@@ -210,84 +211,88 @@ While the literal codes are sufficient to represent a single byte of the input
 data, references to identical sequences are indicated by a length code in the
 range 257..285 but need further representation:
 
-- For codes in the range 265..284, the lengths are subtracted by a fixed offset
-  and represented by a fixed number of extra bits in big-endian order.
+- For codes in the range 265..284, the lengths are subtracted by a fixed base
+  and the resulting offset is represented by a fixed number of extra bits.
 
 - The distance of the triple (index, distance, length) is represented by a
-  second code in the range 0..29 which is called the distance code.
+  second code in the range 0..29 which is called the distance code, see below.
 
 - For distance codes in the range 4..29, the distances are subtracted by a
-  fixed offset and represented by a fixed number of extra bits in big-endian
-  order.
+  fixed base and the resulting offset is represented by a fixed number of extra
+  bits.
 
 Thus, a reference to an identical sequence is represented by the sequence
 
-  <length-code> <length-extra-bits> <distance-code> <distance-extra-bits>
+  <length-code> [ <length-offset> ] <distance-code> [ <distance-offset> ]
 
-The following table specifies the length codes and length extra bits:
+The following table specifies the length codes, length bases, and number of
+extra bits for the length offsets:
 
-  length range  length code range  extra bits  length offset
-  ------------  -----------------  ----------  -----------------------
-         3..10           258..264           0  3 + code - 258
-        11..18           265..268           1  11 + (code - 265) * 2
-        19..34           269..272           2  19 + (code - 269) * 4
-        35..66           273..276           3  35 + (code - 273) * 8
-       67..130           277..280           4  67 + (code - 277) * 16
-      131..257           281..284           5  131 + (code - 281) * 32
-           258                285           0  n/a
+  length range  length code range  length base              extra bits
+  ------------  -----------------  -----------------------  ----------
+         3..10           258..264  3 + code - 258                    0
+        11..18           265..268  11 + (code - 265) * 2             1
+        19..34           269..272  19 + (code - 269) * 4             2
+        35..66           273..276  35 + (code - 273) * 8             3
+       67..130           277..280  67 + (code - 277) * 16            4
+      131..257           281..284  131 + (code - 281) * 32           5
+           258                285  n/a                               0
 
 The length code can be determined by the maximum code where length >= length
-offset (e.g. length 34 matches code 272 with length offset 19 + (272 - 269) * 4
-= 31 but not 273 with length offset 35 + (273 - 273) * 8 = 35).
+base (e.g. length 34 matches code 272 with length base 19 + (272 - 269) * 4 =
+31 but not 273 with length base 35 + (273 - 273) * 8 = 35).
 
-The following table specifies the distance codes and distance extra bits:
+The following table specifies the distance codes, distance bases, and number of
+extra bits for the distance offsets:
 
-  distance range  distance code range  extra bits  distance offset
-  --------------  -------------------  ----------  --------------------------
-            1..4                 0..3           0  1 + code
-            5..8                 4..5           1  5 + (code - 4) * 2
-           9..16                 6..7           2  9 + (code - 6) * 4
-          17..32                 8..9           3  17 + (code - 8) * 8
-          33..64               10..11           4  33 + (code - 10) * 16
-         65..128               12..13           5  65 + (code - 12) * 32
-        129..256               14..15           6  129 + (code - 14) * 64
-        257..512               16..17           7  257 + (code - 16) * 128
-       513..1024               18..19           8  513 + (code - 18) * 256
-      1025..2048               20..21           9  1025 + (code - 20) * 512
-      2049..4096               22..23          10  2049 + (code - 22) * 1024
-      4097..8192               24..25          11  4097 + (code - 24) * 2048
-     8193..16384               26..27          12  8193 + (code - 26) * 4096
-    16385..32768               28..29          13  16385 + (code - 28) * 8192
+  distance range  distance code range  distance base               extra bits
+  --------------  -------------------  --------------------------  ----------
+            1..4                 0..3  1 + code                             0
+            5..8                 4..5  5 + (code - 4) * 2                   1
+           9..16                 6..7  9 + (code - 6) * 4                   2
+          17..32                 8..9  17 + (code - 8) * 8                  3
+          33..64               10..11  33 + (code - 10) * 16                4
+         65..128               12..13  65 + (code - 12) * 32                5
+        129..256               14..15  129 + (code - 14) * 64               6
+        257..512               16..17  257 + (code - 16) * 128              7
+       513..1024               18..19  513 + (code - 18) * 256              8
+      1025..2048               20..21  1025 + (code - 20) * 512             9
+      2049..4096               22..23  2049 + (code - 22) * 1024           10
+      4097..8192               24..25  4097 + (code - 24) * 2048           11
+     8193..16384               26..27  8193 + (code - 26) * 4096           12
+    16385..32768               28..29  16385 + (code - 28) * 8192          13
 
 The distance code can be determined by the maximum code where distance >=
-distance offset (e.g. distance 195 matches code 15 with distance offset 129 +
-(15 - 14) * 64 = 193 but not 16 with distance offset 257 + (16 - 16) * 128 =
-257).
+distance base (e.g. distance 195 matches code 15 with distance base 129 + (15 -
+14) * 64 = 193 but not 16 with distance base 257 + (16 - 16) * 128 = 257).
 
 Example:
 
   The LZ77 compressed data in the example of chapter 3.1 would be represented
-  by the following codes and extra bits (only distant extra bits occur here):
+  by the following codes and offsets (no length offsets occur here):
 
-  index  literal / length code  distance code  extra bits  part of input data
-  -----  ---------------------  -------------  ----------  ------------------
-      0                      0            n/a         n/a  00
-      1                      1            n/a         n/a  01
-      2                    170            n/a         n/a  AA
-      3                    187            n/a         n/a  BB
-      4                      0            n/a         n/a  00
-      5                      1            n/a         n/a  01
-      6                    175            n/a         n/a  AF
-      7                    259              2         n/a  00 01 AF 00 01
-     12                    190            n/a         n/a  BE
-     13                    258              4           1  00 01 AF
-     16                    255            n/a         n/a  FF
+  index  literal / length code  distance code  distance offset  input data
+  -----  ---------------------  -------------  ---------------  --------------
+      0                      0            n/a              n/a  00
+      1                      1            n/a              n/a  01
+      2                    170            n/a              n/a  AA
+      3                    187            n/a              n/a  BB
+      4                      0            n/a              n/a  00
+      5                      1            n/a              n/a  01
+      6                    175            n/a              n/a  AF
+      7                    259              2              n/a  00 01 AF 00 01
+     12                    190            n/a              n/a  BE
+     13                    257              4                1  00 01 AF
+     16                    255            n/a              n/a  FF
 
   For example, the input data sequence 00 01 AF at index 13 is represented by
-  the length code 258 (indicating a length of 3 without needing any extra bits)
-  and the distance code 4 (indicating a distance offset of 5), followed by a
-  single extra bit of value 1 which is added to the distance offset resulting
-  in a distance of 6.
+  the length code 257 (indicating a length of 3 without needing a length
+  offset) and the distance code 4 (indicating a distance base of 5), followed
+  by a the distance offset 1 which is added to the distance base resulting in
+  a distance of 6.
+
+Note that the representation by codes and offsets is still intermediate
+information which may be stored at discretion.
 
 
 3.3 Huffman encoding
