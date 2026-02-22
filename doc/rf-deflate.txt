@@ -62,7 +62,8 @@ Contents
    3.1  Identifying identical sequences (LZ77 analysis)
    3.2  Codes and offsets (extra bits)
    3.3  Huffman encoding
-   3.4  Block format
+   3.4  Dynamic mapping table representation
+   3.5  Block format
 
 
 
@@ -109,6 +110,8 @@ RFC: 1951 - DEFLATE Compressed Data Format Specification version 1.3, see
 
 2. OVERVIEW
 ===============================================================================
+
+[...]
 
 
 
@@ -177,7 +180,7 @@ Example:
 
 Note that LZ77 compression is always performed on the entire input data, even
 if the data is processed in smaller buffers and regardless of the block format
-determined later (see chapter 3.4). However, no references to other input data
+determined later (see chapter 3.5). However, no references to other input data
 must be used, even if other input data immediately preceding may be given (e.g.
 in a file).
 
@@ -197,7 +200,8 @@ offsets considering the identical sequences found before (see chapter 3.1):
   original values (i.e. 0x00..0xFF) of single bytes of the input data which
   are not part of an identical sequence.
 
-- The code 256 is an end marker and reserved on this stage (see capter 3.4).
+- The code 256 is a block end marker (see capter 3.5) and reserved on this
+  stage.
 
 - The codes 257..285 are called length codes and represent a reference to an
   identical sequence where the code depends on the length value of the triple
@@ -273,19 +277,19 @@ Example:
   The LZ77 compressed data from the example of chapter 3.1 would be represented
   by the following codes and offsets (no length offsets occur here):
 
-  index  literal / length code  distance code  distance offset  input data
-  -----  ---------------------  -------------  ---------------  --------------
-      0                      0            n/a              n/a  00
-      1                      1            n/a              n/a  01
-      2                    170            n/a              n/a  AA
-      3                    187            n/a              n/a  BB
-      4                      0            n/a              n/a  00
-      5                      1            n/a              n/a  01
-      6                    175            n/a              n/a  AF
-      7                    259              2              n/a  00 01 AF 00 01
-     12                    190            n/a              n/a  BE
-     13                    257              4                1  00 01 AF
-     16                    255            n/a              n/a  FF
+  index  input data      literal / length code  distance code  distance offset
+  -----  --------------  ---------------------  -------------  ---------------
+      0  00                                  0            n/a              n/a
+      1  01                                  1            n/a              n/a
+      2  AA                                170            n/a              n/a
+      3  BB                                187            n/a              n/a
+      4  00                                  0            n/a              n/a
+      5  01                                  1            n/a              n/a
+      6  AF                                175            n/a              n/a
+      7  (7, 3, 5)                         259              2              n/a
+     12  BE                                190            n/a              n/a
+     13  (13, 6, 3)                        257              4                1
+     16  FF                                255            n/a              n/a
 
   For example, the input data sequence 00 01 AF at index 13 is represented by
   the length code 257 (indicating a length of 3 without needing a length
@@ -304,7 +308,7 @@ All codes from the previous step are encoded by a variable number of bits which
 are taken from two different mapping tables:
 
 - One table maps all literal and length codes as well as the code 256 (which is
-  used as an end marker, see chapter 3.4) in the range 0..285 to individual bit
+  a block end marker, see chapter 3.5) in the range 0..285 to individual bit
   sequences which form a prefix code and should represent a huffman code.
 
 - The other table maps all distance codes in the range 0..29 to individual bit
@@ -386,8 +390,8 @@ Example:
 Now, given dynamic or fixed mapping tables, the sequence of codes and offsets
 from the previous stage (see chapter 3.2) is translated to a sequence of bits
 where the codes are encoded by the corresponding bit sequence of the respective
-mapping table and the offsets, if given, are represented by the number of extra
-bits in big-endian order.
+mapping table in reversed (i.e. little-endian) order and the offsets, if given,
+are represented by the number of extra bits in big-endian order.
 
 Example:
 
@@ -395,21 +399,137 @@ Example:
   represented by the following bit sequences if the fixed mapping table was
   used (the index is omitted from now on):
 
-  bit sequence     literal / length code  distance code  distance offset
-  ---------------  ---------------------  -------------  ---------------
-  00110000                             0            n/a              n/a
-  00110001                             1            n/a              n/a
-  110101010                          170            n/a              n/a
-  110111011                          187            n/a              n/a
-  00110000                             0            n/a              n/a
-  00110001                             1            n/a              n/a
-  110101111                          175            n/a              n/a
-  0000011 00010                      259              2              n/a
-  110111110                          190            n/a              n/a
-  0000001 00100 1                    257              4                1
-  111111111                          255            n/a              n/a
+  literal / length code  distance code  distance offset  bit sequences
+  ---------------------  -------------  ---------------  ---------------
+                      0            n/a              n/a  00001100
+                      1            n/a              n/a  10001100
+                    170            n/a              n/a  010101011
+                    187            n/a              n/a  110111011
+                      0            n/a              n/a  00001100
+                      1            n/a              n/a  10001100
+                    175            n/a              n/a  111101011
+                    259              2              n/a  1100000 00010
+                    190            n/a              n/a  011111011
+                    257              4                1  1000000 00100 1
+                    255            n/a              n/a  111111111
 
 
-3.4 Block format
+3.4 Dynamic mapping table representation
 -------------------------------------------------------------------------------
 
+If dynamic mapping tables are used, they are stored in the following manner so
+that they can be reconstructed on decompression.
+
+Both mapping tables, the literal / length mapping table and the distance table,
+are defined by the length of the bit sequence for each code (possibly zero).
+
+[...]
+
+
+3.5 Block format
+-------------------------------------------------------------------------------
+
+Eventually, the input data is split into one or more blocks where each block
+uses one of the following encoding methods:
+
+- Compressed blocks using dynamic mapping tables
+- Compressed blocks using fixed mapping tables
+- Uncompressed blocks
+
+How the size of a block and the encoding methods are determined is not subject
+to the deflate data format. In general, the size of a compressed block using
+either dynamic or fixed mapping tables may be maintained during processing and
+if compression ratio would decrease, the current block may be terminated and a
+new block may be created. Uncompressed blocks should be used only if the input
+data cannot be compressed (i.e. the compressed size would be greater or equal
+than the uncompressed size). Note that the LZ77 analysis (see chapter 3.1) is
+independent from the blocks chosen.
+
+As the result of the huffman encoding (see chapter 3.3) as well as the dynamic
+mapping table representation (see chapter 3.4) is a sequence of bit sequences,
+compressed blocks must translate a sequence of bits into a sequence of bytes by
+the following algorithm which requires the length of the bit sequence for the
+portion of data to be stored (bitSequence is a UINT value with the bit sequence
+for the portion of data, bitLen is the length of the bit sequence, tOutput[]
+is an array of UINT-8 values, initialized by zero, outputIndex is the current
+index of tOutput and outputBitLen is the number of bits currently stored in
+tOutput[outputIndex], initialized by zero):
+
+  while (bitLen > 0)
+  {
+      if (bitSequence & 1)
+      {
+          tOutput[outputIndex] = tOutput[outputIndex] | (1 << outputBitLen);
+      }
+      
+      bitSequence = bitSequence >> 1;
+      bitLen = bitLen - 1;
+      outputBitLen = outputBitLen + 1;
+      
+      if (outputBitLen >= 8)
+      {
+          outputIndex = outputIndex + 1;
+          outputBitLen = 0;
+      }
+  }
+
+Each block has a header of 3 bits which immediately follows the last bit of a
+previous block, if given:
+
+- The least significand bit (LSB) is a flag which indicates the last block if
+  set to 1. Thus, the deflate data format is self delimiting.
+
+- The two most significand bits (MSB) represent the encoding method (the bit
+  sequence 11 is invalid):
+
+  00: uncompressed block
+  01: compressed blocks using fixed mapping tables
+  10: compressed blocks using dynamic mapping tables
+
+Note that the header may also be processed by two individual bit sequences of
+the lengths 1 and 2.
+
+While compressed block have no size limit, uncompressed blocks are limited to
+65535 bytes. If an uncompressed block is indicated by the block header, the
+remaining output bits are skiped (should be zero):
+
+  if (outputBitLen > 0)
+  {
+      outputIndex = outputIndex + 1;
+      outputBitLen = 0;
+  }
+
+The next 4 bytes represent the the size of the uncompressed data by two UINT-16
+values in little-endian order where the secont value is the one's complement of
+the size (size bytes of uncompressed input data follow):
+
+  tOutput[outputIndex] = size & 0xFF;
+  tOutput[outputIndex + 1] = (size >> 8) & 0xFF;
+  tOutput[outputIndex + 2] = ~size & 0xFF;
+  tOutput[outputIndex + 3] = (~size >> 8) & 0xFF;
+  outputIndex = outputIndex + 4;
+
+  while (size > 0)
+  {
+      tOutput[outputIndex] = tInput[inputIndex];
+      outputIndex = outputIndex + 1;
+      inputIndex = inputIndex + 1;
+  }
+
+  +---+---+---+---+---------------------------------------------+
+  |  size | ~size |  uncompressed block of input data (UINT-8)  |
+  +---+---+---+---+---------------------------------------------+
+
+Although not explicitly stated by [RFC-1951], size should be greater than 0 on
+compression but a size of 0 shall be recognized on decompression. If the one's
+complement of size does not match the size (i.e. size ^ ~size != 0), a warning
+should be outputted but decompression should continue. Note that in this case,
+the results of all previous stages are discarded. However, the input data which
+is stored as uncompressed data may still be part of the sliding window for LZ77
+analysis of the next block(s).
+
+Compressed blocks immediately start after the block header. If dynamic mapping
+tables are used, the mapping table representation (see chapter 3.4) is stored
+first. Then, regardless which mapping tables are used, the Huffman encoded
+codes (see chapter 3.3) and extra bits are stored bit sequence by bit sequence
+and the block is terminated by the bit sequence which represents the code 256.
