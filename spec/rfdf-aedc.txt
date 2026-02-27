@@ -418,6 +418,10 @@ for attackes which get known of the new (i.e. re-nonced) AEDC_HEADER, it should
 not be considered as additional entropy because the old AEDC_HEADER is not
 secret and may also be known.
 
+Before the AEDC_STREAM is encrypted by AES-256-GCM, it is [DEFLATE] compressed
+(also see /doc/rf-deflate.txt) which is a self delimiting format (thus, the end
+of the AEDC_STREAM is recognized by the deflate format).
+
 If the AEDC format is represented by a file, a stealth mode is specified by
 the AEDC_STEALTH_FILE format which basically obfuscates the KEY_COUNT value in
 the AEDC_HEADER while all other values appear to be random anyway (however,

@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-22 : 01.00!01 : Ingo
+2026-02-27 : 01.00!01 : Ingo
 
   Draft.
 
@@ -58,12 +58,19 @@ Contents
 
 2. OVERVIEW
 
-3. DEFLATE STAGES
-   3.1  Identifying identical sequences (LZ77 analysis)
-   3.2  Codes and offsets (extra bits)
-   3.3  Huffman encoding
-   3.4  Dynamic mapping table representation
-   3.5  Block format
+3. DEFINITIONS
+   3.1  Value
+   3.2  Base / offset
+   3.3  Symbol
+   3.4  Bit sequence / bit length
+   3.5  Prefix code
+
+4. DEFLATE PHASES
+   4.1  Identifying identical sequences (LZ77 analysis)
+   4.2  Symbols and offsets (extra bits)
+   4.3  Prefix encoding
+   4.4  Dynamic mapping table representation
+   4.5  Block format
 
 
 
@@ -106,34 +113,128 @@ Retro-Frame homepage, see <http://source.retro-frame.net/>.
 RFC: 1951 - DEFLATE Compressed Data Format Specification version 1.3, see
 <https://datatracker.ietf.org/doc/html/rfc1951>.
 
+[ZIP]
+APPNOTE.TXT - .ZIP File Format Specification, version 6.3.10, PKWARE Inc, see
+<http://www.pkware.com/appnote>.
+
 
 
 2. OVERVIEW
 ===============================================================================
 
-[...]
+Deflate is a widly used data format for the compression of byte streams based
+on LZ77 (Lempel-Ziv 1977) and Huffman encoding. It was originally designed for
+the [ZIP] data format and later standardized by [RFC-1951]. The deflate data
+format is self-delimiting.
+
+This document focuses on the actual data format rather than on the compression
+algorithms. Compliance to the data format should result in interoperability
+(i.e. one program should be able to decompress a deflate data format which has
+been compressed by another program). However, there may be subtle differences
+in the implementations which may lead to incompatibility (e.g. an encoding
+which was considered valid by the compressor but invalid by the decompressor).
+In this document, the rules to encode compressed data may be more strict than
+the rules to decode compressed data following the goal that compressed data
+can be decompressed by any other program while decompression should accept all
+possible encodings as long as they are unambiguous.
+
+Not subject to this document are the compression algorithms. The compression
+ratio highly depends on the following choices by the compression algorithms:
+
+- The identical byte sequences during the LZ77 phase (see chapter 4.1).
+
+- The bit lengths of the prefix codes (see chapter 4.3).
+
+- The block sizes and the individual block encoding methods (see chapter 4.5).
+
+In other words, it would be possible to create a valid deflate data format with
+a poor compression ratio (even worse, the compressed data size may be larger
+than the uncompressed data size). Thus, it is subject to the implementations to
+select appropriate algorithms in order to achieve a good compression ratio.
 
 
 
-3. DEFLATE STAGES
+3. DEFINITIONS
 ===============================================================================
 
 
-3.1 Identifying identical sequences (LZ77 analysis)
+3.1 Value
+-------------------------------------------------------------------------------
+
+A 'VALUE' is a number which represents a single byte of the input data or the
+actual length respectively distance of the reference to an identical byte
+sequence. The value of a single byte of the input data is represented in
+hexadecimal notation while the value of a length or distance is represented in
+decimal notation.
+
+
+3.2 Base / offset
+-------------------------------------------------------------------------------
+
+A 'BASE' is a predefined length or distance VALUE. An 'OFFSET' is a summand of
+a length or distance VALUE so that VALUE = BASE + OFFSET. While the BASE is an
+implicit value, the OFFSET is represented in the compressed data as extra bits.
+
+
+3.3 Symbol
+-------------------------------------------------------------------------------
+
+A 'SYMBOL' is a number which is used for intermediate representation of single
+bytes of the input data, a block end marker or a range of length respectively
+distance VALUES which use the same BASE. Symbols are represented by one, two or
+three a commercial ats ('@'), followed by a number in decimal representation:
+
+- @<number> represents a literal, block end marker or length (LIT) symbol
+- @@<number> represents a distance (DIST) symbol
+- @@@<number> represents a prefix code bit length (CLEN) symbol
+
+When a symbol used in a numeric expression, the number of the symbol is casted
+to a VALUE implicitly (e.g. @@12 - 3 = 9).
+
+
+3.4 Bit sequence / bit length
+-------------------------------------------------------------------------------
+
+A 'BIT SEQUENCE' is the binary representation of a number with a defined number
+of bits in a defined order which represents an atomic unit of the deflate data
+format. The 'BIT LENGTH' is the number of bits of a BIT SEQUENCE. Note that
+the bit length is not necessarily a multiple of 8 and that the bit order is
+independent from the byte order. On decompression, the bit length must be known
+in advance except for PREFIX CODES where the bit length can be determined
+implicitly.
+
+
+3.5 Prefix code
+-------------------------------------------------------------------------------
+
+A 'PREFIX CODE' is a BIT SEQUENCE which distinctly represent a SYMBOL where
+the BIT LENGTH is variable but can be determined implicitly. Although it is
+intented that the PREFIX CODES are Huffman codes (i.e. optimal regarding the
+BIT LENGTH), the term Huffman code is avoided in this documemt as the deflate
+data format relies on the prefix code property rather than on the Huffman code
+property.
+
+
+
+4. DEFLATE PHASES
+===============================================================================
+
+
+4.1 Identifying identical sequences (LZ77 analysis)
 -------------------------------------------------------------------------------
 
 The initial processing of the input data (given as a UINT-8 sequence of bytes)
-is an algorithm which identifies identical sequences of a length from 3 to 258
-bytes within a sliding window of 32768 bytes according to the LZ77 compression
-(Lempel-Ziv 1977, the algorithms are not subject to this description of the
-data format):
+is the identification of identical (i.e. duplicate) sequences of a length from
+3 to 258 bytes within a sliding window of 32768 bytes according to the LZ77
+compression (the algorithms are not subject to this description of the data
+format):
 
                           +------------------------------+
                           |  32768 bytes sliding window  |
   +-----------------------+------------------------------+------------------+
   |  input data (UINT-8)                 <length>         <length>          |
   +--------------------------------------^----------------^-----------------+
-                                         |    distance    | current index
+                                         |   <distance>   | current index
                                          +----------------+
 
 The position of the identical sequence within the sliding window is referenced
@@ -144,11 +245,11 @@ the distance must not exceed the input data). While the sequence must start
 within the sliding window, it may overlap with the identical sequence starting
 from the current index.
 
-All references to identical sequences, given by the triple
+All references to identical sequences given by the triple
 
   (index, distance, length)
 
-are intermediate information at this stage and may be stored at discretion. No
+are intermediate information in this phase and may be stored at discretion. No
 more than one reference shall exist for each index. If more than one sequence
 was found in the sliding window, the longest sequence should be chosen (if the
 maximum length was found multiple times, the smallest distance should be
@@ -178,10 +279,10 @@ Example:
 
   As a result, the identical sequences are (7, 3, 5) and (13, 6, 3).
 
-Note that LZ77 compression is always performed on the entire input data, even
-if the data is processed in smaller buffers and regardless of the block format
-determined later (see chapter 3.5). However, no references to other input data
-must be used, even if other input data immediately preceding may be given (e.g.
+Note that LZ77 analysis is always performed on the entire input data, even if
+the data is processed in smaller buffers and regardless of the block format
+determined later (see chapter 4.5). However, no references to other input data
+must be used, even if immediately preceding other input data may be given (e.g.
 in a file).
 
 On compression, in order to comply with the data format, it is not required to
@@ -190,243 +291,266 @@ be chosen and in worst case, no identical sequences are found at all). However,
 on decompression, the full sliding window must be supported.
 
 
-3.2 Codes and offsets (extra bits)
+4.2 Symbols and offsets (extra bits)
 -------------------------------------------------------------------------------
 
-On the next stage, the result of the LZ77 analysis is represented as codes and
-offsets considering the identical sequences found before (see chapter 3.1):
+In the next phase, the result of the LZ77 analysis is represented as symbols
+and offsets considering the identical sequences found before (see chapter 4.1):
 
-- The codes 0..255 are called literal codes and represent the corresponding
+- The symbols @0..@255 are called literal codes and represent the corresponding
   original values (i.e. 0x00..0xFF) of single bytes of the input data which
   are not part of an identical sequence.
 
-- The code 256 is a block end marker (see capter 3.5) and reserved on this
-  stage.
+- The symbol @256 is a block end marker (see capter 4.5) and reserved in this
+  phase.
 
-- The codes 257..285 are called length codes and represent a reference to an
-  identical sequence where the code depends on the length value of the triple
-  (index, distance, length), see below.
+- The symbols @257..@285 are called length symbols and represent a reference to
+  an identical sequence where the symbols depends on the length value of the
+  triple (index, distance, length), see below.
 
 If a part of the input data is represented by a reference to an identical
 sequence, the corresponding 3 to 258 bytes are omitted (i.e. each part of the
-input data is represented by either a literal code or a length code).
+input data is represented by either a literal or a length symbol).
 
-While the literal codes are sufficient to represent a single byte of the input
-data, references to identical sequences are indicated by a length code in the
-range 257..285 but need further representation:
+While a single literal symbol is sufficient to represent a single byte of the
+input data, references to identical sequences are indicated by a length symbol
+in the range @257..@285 but need further representation:
 
-- For length codes in the range 265..284, the length values are subtracted by a
-  fixed base and the resulting offset is represented by a fixed number of extra
+- For length symbols in the range @265..@284, the length values are split into
+  a fixed base and an offset which is represented by a fixed number of extra
   bits.
 
 - The distance of the triple (index, distance, length) is represented by a
-  second code in the range 0..29 which is called the distance code, see below.
+  second symbol in the range @@0..@@29 which is called the distance symbol,
+  see below.
 
-- For distance codes in the range 4..29, the distance values are subtracted by
-  a fixed base and the resulting offset is represented by a fixed number of
+- For distance symbols in the range @@4..@@29, the distance values are split
+  into a fixed base and an offset which is represented by a fixed number of
   extra bits.
 
 In result, a reference to an identical sequence is represented by the following
-sequence of codes and offsets:
+sequence of symbols and offsets:
 
-  <length-code> [ <length-offset> ] <distance-code> [ <distance-offset> ]
+  <length-symbol> [ <length-offset> ] <distance-symbol> [ <distance-offset> ]
 
-The following table specifies the length codes, length bases and number of
-extra bits for the length offsets:
+The following table specifies the length symbols, length bases and length
+offsets, depending on the length values:
 
-  length range  length code range  length base              extra bits
-  ------------  -----------------  -----------------------  ----------
-         3..10           258..264  3 + code - 258                    0
-        11..18           265..268  11 + (code - 265) * 2             1
-        19..34           269..272  19 + (code - 269) * 4             2
-        35..66           273..276  35 + (code - 273) * 8             3
-       67..130           277..280  67 + (code - 277) * 16            4
-      131..257           281..284  131 + (code - 281) * 32           5
-           258                285  258                               0
+  length value  length symbol  length base                length offset
+  ------------  -------------  -------------------------  -------------
+         3..10     @257..@264  3 + symbol - 257                       0
+        11..18     @265..@268  11 + (symbol - 265) * 2             0..1
+        19..34     @269..@272  19 + (symbol - 269) * 4             0..3
+        35..66     @273..@276  35 + (symbol - 273) * 8             0..7
+       67..130     @277..@280  67 + (symbol - 277) * 16           0..15
+      131..257     @281..@284  131 + (symbol - 281) * 32          0..31
+           258           @285  258                                    0
 
-The length code can be determined by the maximum code where length >= length
-base (e.g. length 34 matches code 272 with length base 19 + (272 - 269) * 4 =
-31 but not 273 with length base 35 + (273 - 273) * 8 = 35).
+On compression, the length symbol shall be determined by finding the maximum
+symbol where length value is greater or equal than the length base (e.g. length
+value 34 matches symbol @272 with length base 19 + (@272 - 269) * 4 = 31 but
+not symbol @273 with length base 35 + (@273 - 273) * 8 = 35). On decompression,
+the length base is calculated for each recognized symbol as given (as a special
+case, the length value 258, which should be represented by length symbol @285,
+may also result from the length symbol @284 with offset 31).
 
-The following table specifies the distance codes, distance bases and number of
-extra bits for the distance offsets:
+The following table specifies the distance symbols, distance bases and distance
+offsets, depending on the distance values:
 
-  distance range  distance code range  distance base               extra bits
-  --------------  -------------------  --------------------------  ----------
-            1..4                 0..3  1 + code                             0
-            5..8                 4..5  5 + (code - 4) * 2                   1
-           9..16                 6..7  9 + (code - 6) * 4                   2
-          17..32                 8..9  17 + (code - 8) * 8                  3
-          33..64               10..11  33 + (code - 10) * 16                4
-         65..128               12..13  65 + (code - 12) * 32                5
-        129..256               14..15  129 + (code - 14) * 64               6
-        257..512               16..17  257 + (code - 16) * 128              7
-       513..1024               18..19  513 + (code - 18) * 256              8
-      1025..2048               20..21  1025 + (code - 20) * 512             9
-      2049..4096               22..23  2049 + (code - 22) * 1024           10
-      4097..8192               24..25  4097 + (code - 24) * 2048           11
-     8193..16384               26..27  8193 + (code - 26) * 4096           12
-    16385..32768               28..29  16385 + (code - 28) * 8192          13
+  distance value  distance symbol  distance base                distance offset
+  --------------  ---------------  ---------------------------  ---------------
+            1..4         @@0..@@3  1 + symbol                                 0
+            5..8         @@4..@@5  5 + (symbol - 4) * 2                    0..1
+           9..16         @@6..@@7  9 + (symbol - 6) * 4                    0..3
+          17..32         @@8..@@9  17 + (symbol - 8) * 8                   0..7
+          33..64       @@10..@@11  33 + (symbol - 10) * 16                0..15
+         65..128       @@12..@@13  65 + (symbol - 12) * 32                0..31
+        129..256       @@14..@@15  129 + (symbol - 14) * 64               0..63
+        257..512       @@16..@@17  257 + (symbol - 16) * 128             0..127
+       513..1024       @@18..@@19  513 + (symbol - 18) * 256             0..255
+      1025..2048       @@20..@@21  1025 + (symbol - 20) * 512            0..511
+      2049..4096       @@22..@@23  2049 + (symbol - 22) * 1024          0..1023
+      4097..8192       @@24..@@25  4097 + (symbol - 24) * 2048          0..2047
+     8193..16384       @@26..@@27  8193 + (symbol - 26) * 4096          0..4095
+    16385..32768       @@28..@@29  16385 + (symbol - 28) * 8192         0..8191
 
-The distance code can be determined by the maximum code where distance >=
-distance base (e.g. distance 195 matches code 15 with distance base 129 + (15 -
-14) * 64 = 193 but not 16 with distance base 257 + (16 - 16) * 128 = 257).
+On compression, the distance  symbol shall be determined by finding the maximum
+symbol where distance value is greater or equal than the distance base (e.g.
+distance 99 matches symbol @@13 with distance base 65 + (@@13 - 12) * 32 = 97
+but not symbol @@14 with distance base 129 + (@@14 - 14) * 64 = 129). On
+decompression, the distance is calculated for each recognized symbol as given.
 
 Example:
 
-  The LZ77 compressed data from the example of chapter 3.1 would be represented
+  The LZ77 compressed data from the example of chapter 4.1 would be represented
   by the following codes and offsets (no length offsets occur here):
 
-  index  input data      literal / length code  distance code  distance offset
-  -----  --------------  ---------------------  -------------  ---------------
-      0  00                                  0            n/a              n/a
-      1  01                                  1            n/a              n/a
-      2  AA                                170            n/a              n/a
-      3  BB                                187            n/a              n/a
-      4  00                                  0            n/a              n/a
-      5  01                                  1            n/a              n/a
-      6  AF                                175            n/a              n/a
-      7  (7, 3, 5)                         259              2              n/a
-     12  BE                                190            n/a              n/a
-     13  (13, 6, 3)                        257              4                1
-     16  FF                                255            n/a              n/a
+  index  input data  literal / length symbol  distance symbol  distance offset
+  -----  ----------  -----------------------  ---------------  ---------------
+      0  00                               @0              n/a              n/a
+      1  01                               @1              n/a              n/a
+      2  AA                             @170              n/a              n/a
+      3  BB                             @187              n/a              n/a
+      4  00                               @0              n/a              n/a
+      5  01                               @1              n/a              n/a
+      6  AF                             @175              n/a              n/a
+      7  (7, 3, 5)                      @259              @@2              n/a
+     12  BE                             @190              n/a              n/a
+     13  (13, 6, 3)                     @257              @@4                1
+     16  FF                             @255              n/a              n/a
 
   For example, the input data sequence 00 01 AF at index 13 is represented by
-  the length code 257 (indicating a length of 3 without needing a length
-  offset) and the distance code 4 (indicating a distance base of 5), followed
-  by a the distance offset 1 which is added to the distance base resulting in
-  a distance of 6.
+  the length symbol @257 (indicating a length of 3 without needing a length
+  offset) and the distance symbol @@4 (indicating a distance base of 5),
+  followed by the distance offset 1 which is added to the distance base
+  resulting in a distance of 6.
 
-Note that the representation by codes and offsets is still intermediate
+Note that the representation by symbols and offsets is still intermediate
 information which may be stored at discretion.
 
 
-3.3 Huffman encoding
+4.3 Prefix encoding
 -------------------------------------------------------------------------------
 
-All codes from the previous step are encoded by a variable number of bits which
-are taken from two different mapping tables:
+All symbols from the previous phase are encoded by a variable number of bits
+which are taken from two different mapping tables:
 
-- One table maps all literal and length codes as well as the code 256 (which is
-  a block end marker, see chapter 3.5) in the range 0..285 to individual bit
-  sequences which form a prefix code and should represent a huffman code.
+- One table maps all literal and length symbols as well as the symbol @256
+  (which is a block end marker, see chapter 4.5) in the range @0..@285 to bit
+  sequences which must form a valid prefix code.
 
-- The other table maps all distance codes in the range 0..29 to individual bit
-  sequences which form a prefix code and should represent a huffman code.
+- The other table maps all distance symbols in the range @@0..@@29 to bit
+  sequences which must form a valid prefix code.
 
-The deflate data format specifies that either dynamic mapping tables are used
-or fixed mapping tables where the mapping table for distance codes is fixed to
-5 bit sequences (the bit sequences 11110 and 11111 must not occur as the codes
-30 and 31 are not used) and the mapping table for the literal and length codes
-is as follows (the bit sequences 11000110 and 11000110 must not occur as the
-codes 286 and 287 are not used):
+The deflate data format specifies that either dynamic mapping tables or the
+fixed mapping tables are used.
 
-  code range  length of bit sequence  bit sequence range
-  ----------  ----------------------  --------------------
-      0..143                       8  00110000..10111111
-    144..255                       9  110010000..111111111
-    256..279                       7  0000000..0010111
-    280..285                       8  11000000..11000101
+The following table specifies the fixed mapping for the literal and length
+symbols:
 
-For dynamic mapping tables, the lengths of the bit sequences of up to 15 bits
-should be chosen optimal according to Huffman encoding on compression and are
-stored so that they can be reconstructed on decompression (see chapter 3.4).
-Codes which never occur do not need a mapped bit sequence and should thus have
-a bit length of zero.
+  literal / length symbol  bit length   bit sequence (prefix code)
+  -----------------------  -----------  --------------------------
+                 @0..@143            8  00110000..10111111
+               @144..@255            9  110010000..111111111
+               @256..@279            7  0000000..0010111
+               @280..@285            8  11000000..11000101
 
-How the the optimal length of the bit sequences is determined is not subject
-to the deflate data format (in worst case, all bit lengths are set to 15 bits).
-However, it is specified how the bit sequences are determined for given lengths
-by the following algorithm (let tBitLen[maxCode + 1] by an array of the bit
-lengths for each code and maxCode the maximum code value):
+The following table specifies the fixed mapping for the distance symbols:
 
-  /* count the number of occurrences for each length: */
+  distance symbol  bit length  bit sequence (prefix code)
+  ---------------  ----------  --------------------------
+        @@0..@@29           5  00000..11101
+
+For dynamic mapping tables, a bit length in the range 1..15 must be chosen for
+each symbol. If a symbol is never used, a bit length of 0 may be chosen. The
+bit lengths of the literal / length symbols as well as those of the distance
+symbols must be translated to individual bit sequences for the symbols, which
+in both cases must form a valid prefix code, by the following algorithm (let
+maxSymbol the the maximum symbol value and tBitLen[maxSymbol + 1] an array of
+the bit lengths for each symbol while tPrefixCode[maxSymbol + 1] receives the
+resulting bit sequences of the prefix code as unsigned integers):
+
+  /* count the number of occurrences for each bit length: */
 
   for (bitLen = 0; bitLen <= 15; bitLen = bitLen + 1)
   {
-       tBitLenCount[bitLen] = 0; 
+      tBitLenCount[bitLen] = 0; 
   }
 
-  for (code = 0; code <= maxCode; code = code + 1)
+  for (symbol = 0; symbol <= maxSymbol; symbol = symbol + 1)
   {
-       tBitLenCount[tBitLen[code]] = tBitLenCount[tBitLen[code]] + 1;
+      tBitLenCount[tBitLen[symbol]] = tBitLenCount[tBitLen[symbol]] + 1;
   }
 
-  /* determine the starting bit sequence for each length: */
+  /* determine the starting bit sequence for each bit length: */
 
   tBitLenCount[0] = 0;
-  tBitLenSequence[0] = 0;
+  tBitSequence[0] = 0;
 
-  for (bitLen = 0; bitLen < 15; bitLen = bitLen + 1)
+  for (bitLen = 1; bitLen <= 15; bitLen = bitLen + 1)
   {
-      tBitLenSequence[bitLen + 1] =
-          (tBitLenSequence[bitLen] + tBitLenCount[bitLen]) << 1;
+      tBitSequence[bitLen] =
+          (tBitSequence[bitLen - 1] + tBitLenCount[bitLen - 1]) << 1;
   }
 
   /* build the mapping table: */
 
-  for (code = 0; code <= maxCode; code = code + 1)
+  for (symbol = 0; symbol <= maxSymbol; symbol = symbol + 1)
   {
-      tBitSequence[code] = tBitLenSequence[tBitLen[code]];
+      bitLen = tBitLen[symbol];
 
-      if (tBitLen[code] > 0)
+      tPrefixCode[symbol] = tBitSequence[bitLen];
+
+      if (bitLen > 0)
       {
-          tBitLenSequence[tBitLen[code]] = tBitLenSequence[tBitLen[code]] + 1;
+          tBitSequence[bitLen] = tBitSequence[bitLen] + 1;
       }
   }
 
-Example:
+Note that, on compression, overflows must be avoided (e.g. if more than two
+symbols are given but two symbols have a bit length of one bit, or if 14
+symbols have a consecutive bit length from 1..14, only two bit sequences are
+left for a bit length of 15). On decompression, such cases shall be considered
+an invalid format.
 
-  The following mapping table maps the codes 0, 3, 17 and 21 to bit sequences
-  of the length 3, 2, 1 and 2 bits:
-
-  code  tBitLen[code]  tBitSequence[code]
-  ----  -------------  ------------------
-     0              3  110
-     3              2  10
-    17              1  0
-    21              2  111
-
-Now, given dynamic or fixed mapping tables, the sequence of codes and offsets
-from the previous stage (see chapter 3.2) is translated to a sequence of bits
-where the codes are encoded by the corresponding bit sequence of the respective
-mapping table in reversed (i.e. little-endian) order and the offsets, if given,
-are represented by the number of extra bits in big-endian order.
+How the the optimal lengths of the symbols is determined is not subject to the
+deflate data format (in worst case, all bit lengths are set to 15 bits). Any
+bit lengths are valid as long as they form a valid prefix code and each symbol
+which occurs has a bit length in the range 1..15.
 
 Example:
 
-  The sequence of codes and offsets from the example of chapter 3.2 would be
-  represented by the following bit sequences if the fixed mapping table was
+  The following mapping table shows for the symbols @0, @3, @17 and @21 with
+  given bit lengths 3, 2, 1 and 2 bits the resulting prefix codes as unsigned
+  integers (in binary notation) as well as bit sequences:
+
+  symbol  tBitLen[symbol]  tPrefixCode[symbol]  bit sequence (prefix code)
+  ------  ---------------  -------------------  --------------------------
+      @0                3               0b0110  110
+      @3                2               0b0010  10
+     @17                1               0b0000  0
+     @21                2               0b0111  111
+
+Now, given dynamic or fixed mapping tables, the sequence of symbols and offsets
+from the previous phase (see chapter 4.2) is translated to bit sequences where
+the symbols are encoded by the corresponding prefix code of the respective
+mapping table in reversed order (i.e. least significant bit first) and the
+offsets, if given, are represented by the number of extra bits in normal order
+(i.e. most significant bit first).
+
+Example:
+
+  The sequence of codes and offsets from the example of chapter 4.2 would be
+  represented by the following bit sequences if the fixed mapping tables are
   used (the index is omitted from now on):
 
-  literal / length code  distance code  distance offset  bit sequences
-  ---------------------  -------------  ---------------  ---------------
-                      0            n/a              n/a  00001100
-                      1            n/a              n/a  10001100
-                    170            n/a              n/a  010101011
-                    187            n/a              n/a  110111011
-                      0            n/a              n/a  00001100
-                      1            n/a              n/a  10001100
-                    175            n/a              n/a  111101011
-                    259              2              n/a  1100000 00010
-                    190            n/a              n/a  011111011
-                    257              4                1  1000000 00100 1
-                    255            n/a              n/a  111111111
+  literal / length symbol  distance symbol  distance offset  bit sequences
+  -----------------------  ---------------  ---------------  ---------------
+                       @0              n/a              n/a  00001100
+                       @1              n/a              n/a  10001100
+                     @170              n/a              n/a  010101011
+                     @187              n/a              n/a  110111011
+                       @0              n/a              n/a  00001100
+                       @1              n/a              n/a  10001100
+                     @175              n/a              n/a  111101011
+                     @259              @@2              n/a  1100000 00010
+                     @190              n/a              n/a  011111011
+                     @257              @@4                1  1000000 00100 1
+                     @255              n/a              n/a  111111111
 
 
-3.4 Dynamic mapping table representation
+4.4 Dynamic mapping table representation
 -------------------------------------------------------------------------------
 
-If dynamic mapping tables are used, they are stored in the following manner so
-that they can be reconstructed on decompression.
-
-Both mapping tables, the literal / length mapping table and the distance table,
-are defined by the length of the bit sequence for each code (possibly zero).
+If dynamic mapping tables are used, they are stored in the following manner
+so that they can be reconstructed on decompression. Both mapping tables, the
+literal / length symbol mapping table and the distance symbol table, are
+defined by the bit lengths for each prefix code (possibly 0).
 
 [...]
 
 
-3.5 Block format
+4.5 Block format
 -------------------------------------------------------------------------------
 
 Eventually, the input data is split into one or more blocks where each block
@@ -442,18 +566,18 @@ either dynamic or fixed mapping tables may be maintained during processing and
 if compression ratio would decrease, the current block may be terminated and a
 new block may be created. Uncompressed blocks should be used only if the input
 data cannot be compressed (i.e. the compressed size would be greater or equal
-than the uncompressed size). Note that the LZ77 analysis (see chapter 3.1) is
+than the uncompressed size). Note that the LZ77 analysis (see chapter 4.1) is
 independent from the blocks chosen.
 
-As the result of the huffman encoding (see chapter 3.3) as well as the dynamic
-mapping table representation (see chapter 3.4) is a sequence of bit sequences,
+As the result of the prefix encoding (see chapter 4.3) as well as the dynamic
+mapping table representation (see chapter 4.4) is a sequence of bit sequences,
 compressed blocks must translate a sequence of bits into a sequence of bytes by
 the following algorithm which requires the length of the bit sequence for the
 portion of data to be stored (bitSequence is a UINT value with the bit sequence
 for the portion of data, bitLen is the length of the bit sequence, tOutput[]
-is an array of UINT-8 values, initialized by zero, outputIndex is the current
+is an array of UINT-8 values, initialized by 0, outputIndex is the current
 index of tOutput and outputBitLen is the number of bits currently stored in
-tOutput[outputIndex], initialized by zero):
+tOutput[outputIndex], initialized by 0):
 
   while (bitLen > 0)
   {
@@ -487,11 +611,12 @@ previous block, if given:
   10: compressed blocks using dynamic mapping tables
 
 Note that the header may also be processed by two individual bit sequences of
-the lengths 1 and 2.
+the lengths 1 for the last block flag and 2 for the encoding method.
 
-While compressed block have no size limit, uncompressed blocks are limited to
+While compressed blocks have no size limit, uncompressed blocks are limited to
 65535 bytes. If an uncompressed block is indicated by the block header, the
-remaining output bits are skiped (should be zero):
+remaining output bits are skiped first (shall be set to 0 on compression and
+ignored on decompression):
 
   if (outputBitLen > 0)
   {
@@ -499,9 +624,9 @@ remaining output bits are skiped (should be zero):
       outputBitLen = 0;
   }
 
-The next 4 bytes represent the the size of the uncompressed data by two UINT-16
-values in little-endian order where the secont value is the one's complement of
-the size (size bytes of uncompressed input data follow):
+Then, the next 4 bytes represent the the size of the uncompressed data by two
+UINT-16 values in little-endian order where the secont value is the one's
+complement of the size (size bytes of uncompressed input data follow):
 
   tOutput[outputIndex] = size & 0xFF;
   tOutput[outputIndex + 1] = (size >> 8) & 0xFF;
@@ -517,19 +642,20 @@ the size (size bytes of uncompressed input data follow):
   }
 
   +---+---+---+---+---------------------------------------------+
-  |  size | ~size |  uncompressed block of input data (UINT-8)  |
+  |  size | ~SIZE |  uncompressed block of input data (UINT-8)  |
   +---+---+---+---+---------------------------------------------+
 
 Although not explicitly stated by [RFC-1951], size should be greater than 0 on
-compression but a size of 0 shall be recognized on decompression. If the one's
-complement of size does not match the size (i.e. size ^ ~size != 0), a warning
-should be outputted but decompression should continue. Note that in this case,
-the results of all previous stages are discarded. However, the input data which
-is stored as uncompressed data may still be part of the sliding window for LZ77
-analysis of the next block(s).
+compression. However, a size of 0 shall be recognized on decompression. If, on
+decompression, the one's complement of size does not match the size (i.e. size
+does not equal ~SIZE), decompression may be continued but a warning should be
+given. Note that if a block is uncompressed, the results of all previous phases
+are discarded. However, the input data which is stored as uncompressed data may
+still be part of the sliding window for LZ77 analysis of the next block(s).
 
 Compressed blocks immediately start after the block header. If dynamic mapping
-tables are used, the mapping table representation (see chapter 3.4) is stored
-first. Then, regardless which mapping tables are used, the Huffman encoded
-codes (see chapter 3.3) and extra bits are stored bit sequence by bit sequence
-and the block is terminated by the bit sequence which represents the code 256.
+tables are used, the mapping table representation (see chapter 4.4) is stored
+first. Then, regardless which mapping tables are used, the prefix encoded
+symbols and extra bits (see chapter 4.3) are stored bit sequence by bit
+sequence and eventually the block is terminated by the bit sequence which
+represents the symbol @256 (thus, this code must not have a bit length of 0).
