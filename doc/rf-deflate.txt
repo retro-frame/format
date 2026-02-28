@@ -45,7 +45,7 @@ Change history
 
 2026-02-27 : 01.00!01 : Ingo
 
-  Draft.
+  Initial version.
 
 
 Contents
@@ -67,8 +67,8 @@ Contents
 
 4. DEFLATE PHASES
    4.1  Identifying identical sequences (LZ77 analysis)
-   4.2  Symbols and offsets (extra bits)
-   4.3  Prefix encoding
+   4.2  Representation by symbols and offsets
+   4.3  Encoding as bit sequences
    4.4  Dynamic mapping table representation
    4.5  Block format
 
@@ -122,10 +122,10 @@ APPNOTE.TXT - .ZIP File Format Specification, version 6.3.10, PKWARE Inc, see
 2. OVERVIEW
 ===============================================================================
 
-Deflate is a widly used data format for the compression of byte streams based
-on LZ77 (Lempel-Ziv 1977) and Huffman encoding. It was originally designed for
-the [ZIP] data format and later standardized by [RFC-1951]. The deflate data
-format is self-delimiting.
+Deflate is a widly used binary data format for the compression of byte streams
+based on LZ77 (Lempel-Ziv 1977) compression and Huffman encoding (i.e. prefix
+codes). It was originally designed for the [ZIP] data format and standardized
+by [RFC-1951]. The deflate data format is self-delimiting.
 
 This document focuses on the actual data format rather than on the compression
 algorithms. Compliance to the data format should result in interoperability
@@ -181,8 +181,9 @@ implicit value, the OFFSET is represented in the compressed data as extra bits.
 
 A 'SYMBOL' is a number which is used for intermediate representation of single
 bytes of the input data, a block end marker or a range of length respectively
-distance VALUES which use the same BASE. Symbols are represented by one, two or
-three a commercial ats ('@'), followed by a number in decimal representation:
+distance VALUES which use the same BASE. Symbols are represented by one, two
+or three a commercial at signs ('@'), followed by a number in decimal
+representation:
 
 - @<number> represents a literal, block end marker or length (LIT) symbol
 - @@<number> represents a distance (DIST) symbol
@@ -291,7 +292,7 @@ be chosen and in worst case, no identical sequences are found at all). However,
 on decompression, the full sliding window must be supported.
 
 
-4.2 Symbols and offsets (extra bits)
+4.2 Representation by symbols and offsets
 -------------------------------------------------------------------------------
 
 In the next phase, the result of the LZ77 analysis is represented as symbols
@@ -409,7 +410,7 @@ Note that the representation by symbols and offsets is still intermediate
 information which may be stored at discretion.
 
 
-4.3 Prefix encoding
+4.3 Encoding as bit sequences
 -------------------------------------------------------------------------------
 
 All symbols from the previous phase are encoded by a variable number of bits
@@ -421,6 +422,11 @@ which are taken from two different mapping tables:
 
 - The other table maps all distance symbols in the range @@0..@@29 to bit
   sequences which must form a valid prefix code.
+
+Offsets, if given, are encode by a fixed number of extra bits which is the
+minimum number of bits capable to represent the full range of offsets as
+specified for each symbol (e.g. for the symbol @279, the range of offsets is
+0..15, so that 4 extra bits are used).
 
 The deflate data format specifies that either dynamic mapping tables or the
 fixed mapping tables are used.
@@ -513,7 +519,7 @@ Example:
 
 Now, given dynamic or fixed mapping tables, the sequence of symbols and offsets
 from the previous phase (see chapter 4.2) is translated to bit sequences where
-the symbols are encoded by the corresponding prefix code of the respective
+the symbols are encoded by the corresponding prefix codes of the respective
 mapping table in reversed order (i.e. least significant bit first) and the
 offsets, if given, are represented by the number of extra bits in normal order
 (i.e. most significant bit first).
