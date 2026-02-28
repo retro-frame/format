@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-16 : 01.00!00 : Ingo
+2026-02-28 : 01.00!00 : Ingo
 
   Draft.
 
@@ -338,14 +338,15 @@ is considered invalid if the version number is not in the allowed range (see
 format version numbers of more than two digits are still considered part of the
 format version but invalid (e.g. "1.111").
 
-  Type       Name        Description
-  ---------  ----------  --------------------------------------------------
-  "ASM"      ASM         Assembler Code Selector
-  "CP-CODE"  CPCODE      Codepage Code
-  "CP-SPEC"  CPSPEC      Codepage Specifications
-  "RFFF"     RFFF        Magic Prefix
-  "SYM"      SYM         Symbol Table (mapping of values to symbolic names)
-  "TEXT"     TEXT        Unspecified Text
+  Type        Name        Description
+  ----------  ----------  --------------------------------------------------
+  "ASM"       ASM         Assembler Code Selector
+  "CP-CODE"   CPCODE      Codepage Code
+  "CP-SPEC"   CPSPEC      Codepage Specifications
+  "RDEFLATE"  RDEFLATE    Raw Deflate Encoding
+  "RFFF"      RFFF        Magic Prefix
+  "SYM"       SYM         Symbol Table (mapping of values to symbolic names)
+  "TEXT"      TEXT        Unspecified Text
 
 
 3.3 Standard text format structure
@@ -501,6 +502,7 @@ does not have an extension (i.e. the file name does not contain a period '.').
   ".CPC"       ".CPC"  CPCODE
   ".CPS"       ".CPS"  CPSPEC
   ".pcs"       ".PCS"  PCS
+  ".rdeflate"  ".RDF"  RDEFLATE
   ".rff"       ".RFF"  RFFF
   ".symtab"    ".SYM"  SYM
   ".txt"       ".TXT"  TEXT

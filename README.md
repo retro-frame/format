@@ -101,6 +101,9 @@ Currently, the following data format specification documents are provided:
 * `spec/rfdf-pcs.txt` provides the specification of the Packed Character String
   Text (5043) format.
 
+* `spec/rfdf-rfdf-rdeflate.txt` provides the specification of the Raw Deflate
+  Encoding ("RDEFLATE") format.
+
 * `spec/rfdf-rfff.txt` provides the specification of the Retro-Frame Magic
   Prefix (5246 / "RFFF") format.
 
