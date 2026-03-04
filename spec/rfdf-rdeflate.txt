@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-28 : 01.00!01 : Ingo
+2026-03-03 : 01.00!01 : Ingo
 
   Draft.
 
@@ -121,8 +121,33 @@ by [RFC-1951].
 
 As it is very hard to interpret a raw binary deflate compressed data stream,
 especially if dynamic prefix codes are used, the RDEFLATE data format provides
-a representation of the same data as text and make it thus readable and even
+a representation of the exact data as text and make it thus readable and even
 editable.
+
+Note that while the RDEFLATE itself is subject to the standard text processing
+as specified by [RETRO-FRAME], the contents represents data of the original
+deflate data stream. As deflate is a binary format, the individual data units
+of a compressed block are represented as text in the following variants:
+
+- A single literal symbol (e.g. @24 which represents the input byte 0x18).
+
+- A single length symbol, optionally trailed by a representation of extra bits,
+  and single distance symbol, optionally trailed by a representation of extra
+  bits, which is the beginning of a identical byte sequence reference (e.g.
+  @262@@4:1 which represents a reference to an identical byte sequence at
+  distance 6 with length 8).
+
+- An escape sequence which is translated to corresponding literal / length or
+  distance symbols.
+
+- A character of the STANDARD CHARACTER SET, which is not part of a symbol or
+  escape sequence, or a single space (' ', SP) represents a literal value by
+  its ASCII code and is thus equivalent to the corresponding literal symbol
+  (e.g. a single 'B' is equivalent to the literal symbol @66).
+
+The block end marker (@256) is used implicitly. Other data units (e.g. block
+headers or dynamic mapping tables) are represented by a different syntax as
+specified below.
 
 
 
@@ -135,70 +160,32 @@ editable.
 
 RDEFLATE is a not self-delimiting text format using the STANDARD CHARACTER SET.
 
-All control characters shall be escaped, including HT (horizontal tab) and 
-line breaks. Actual line breaks in the resulting text may be required by the
-syntax but additional line breaks may be inserted at discretion (e.g. in order
-to ensure a maximum line width) and are ignored in this case.
+On input, all control characters (including HT and line breaks) shall be
+ignored. However, On output, no control characters other than line breaks, which may
+be inserted at discretion, should be written.
 
-The circumflex accent ('^', caret) is used as an escape character. If escaping
-is recognized, the following sequences are defined after the occurence of the
-escape character:
+Escape sequences are used but in a different, although similar, meaning than
+the standard specification [COMMON DOCUMENTATION], /spec/rf-char.txt, chapter
+5.5, as the escape sequences in the RDEFLATE data format represent literal /
+length or distance symbols rather than codepoints of the text.
 
-- Any symbol (i.e. a character which is neither a control character, a space,
-  a digit nor a letter) stands for itself and will not have a special meaning,
-  even it would have one in the specific context (in particular, the escape
-  character itself may be represented this way).
+The following tokens are used:
 
-- Two consecutive uppercase hexadecimal digits ('0'..'9', 'A'..'F') represent a
-  single literal value (i.e. one byte). There shall not be only one hexadecimal
-  digit. Note that this escape sequence differs from the standard specification
-  according to [COMMON DOCUMENTATION], /spec/rf-char.txt, chapter 5.5.
-
-- The following lowercase characters represent a single literal value with the
-  corresponding code for a specific line break in the current codepage:
-
-  - 't' represents a HT (horizontal tab)
-  - 'n' represents a LF (line feed)
-  - 'v' represents a VT (vertical tab)
-  - 'f' represents a FF (form feed)
-  - 'r' represents a CR (carriage return)
-  - 'l' represents a NEL (next line) or EOL (end of line)
-
-- 'I', followed by an arbitrary sequence of characters up to a closing
-  semicolon ';', may be used to provide additional information which is,
-  however, ignored and may be used for comments.
-
-- 'S' indicates a reference to an identical byte sequence. Immediately
-  following the letter, a distance value is expected in the range 1..32768 in
-  decimal representation, followed by a comma ',', followed by a length value
-  in the range 3..258 in decimal representation, followed by a semicolon ';'
-  is expected.
-
-- All other sequences are reserved and must not be used.
-
-The following tokens are recognized:
-
-- A left square bracket "["
-- A right square bracket "]"
+- A left square bracket "[" after a line break
+- A right square bracket "]" followed by a line break
 - An equals sign "="
 - A colon ":"
-- A comma ","
 - A semicolon ";"
+- Two consecutive full stops ".." (range operator)
 - "FINAL"
 - "UNCOMPRESSED"
 - "FIXED"
 - "DYNAMIC"
-- A sequence of up to 8 characters representing a codepage
 - A literal value in the range 0x0000..0x00FF
 - A symbol, represented by 1..3 commercial at signs '@' and a numeric value in
   the range 0x0000..0x01FF
 - A numeric value in the range 0x0000..0x1FFF
-
-A reference to an identical byte sequence given by a "^S" escape sequence shall
-be translated into the following token sequence (the symbol and numeric values
-shall be determined according to [RFC-1951]):
-
-  @<symbol> [ "," <numeric-value> ] @@<symbol> [ "," <numeric-value> ] ";"
+- An escape sequence starting with a circumflex accent ('^', caret)
 
 There are no restrictions on the format version.
 
@@ -242,10 +229,6 @@ There are no restrictions on the format version.
 
   "t" | "n" | "v" | "f" | "r" | "l"
 
-<rdeflate-escape-info>:
-
-  "I"_[_._]*_";"
-
 <rdeflate-escape-sequence>:
 
   "S"_<rdeflate-decimal-value>_","_<rdeflate-decimal-value>_";"
@@ -256,8 +239,7 @@ There are no restrictions on the format version.
   <rdeflate-escape-symbol> |
   <rdeflate-escape-literal> |
   <rdeflate-escape-control> |
-  <rdeflate-escape-info> |
-  <rdeflate-escape-sequence>)
+  <rdeflate-escape-sequence> )
 
 <rdeflate-block>:
 
@@ -300,3 +282,44 @@ There are no restrictions on the format version.
 3.3 Semantics
 -------------------------------------------------------------------------------
 
+
+The circumflex accent ('^', caret) is used as an escape character. Note that
+the escape sequences specified here, although similar, differ from the standard
+specification according to [COMMON DOCUMENTATION], /spec/rf-char.txt, chapter
+5.5, as the escape sequences represent data of the original deflate data stream
+rather than codepoints of the actual text of the RDEFLATE data format. After
+the occurence of an escape character, the following sequences are defined:
+
+- Any symbol character (i.e. a character which is neither a control character,
+  a space, a digit nor a letter) always represents a single literal value (i.e.
+  one byte of the original input data) and has never a special meaning (in
+  particular, the escape character itself may be represented this way).
+
+- Two consecutive uppercase hexadecimal digits ('0'..'9', 'A'..'F') represent a
+  single literal value (i.e. one byte). There shall not be only one hexadecimal
+  digit.
+
+- The following lowercase characters represent a single literal value with the
+  corresponding code for a specific line break in the current codepage:
+
+  - 'a' represents the literal value 0x07 (BEL, bell)
+  - 'b' represents the literal value 0x08 (BS, backspace)
+  - 't' represents the literal value 0x09 (HT, horizontal tab)
+  - 'n' represents the literal value 0x0A (LF, line feed)
+  - 'v' represents the literal value 0x0B (VT, vertical tab)
+  - 'f' represents the literal value 0x0C (FF, form feed)
+  - 'r' represents the literal value 0x0D (CR, carriage return)
+
+- 'S' indicates a reference to an identical byte sequence. Immediately
+  following the letter, a distance value is expected in the range 1..32768 in
+  decimal representation, followed by a comma ',', followed by a length value
+  in the range 3..258 in decimal representation, followed by a semicolon ';'
+  is expected.
+
+- All other sequences are reserved and must not be used.
+
+A reference to an identical byte sequence given by a "^S" escape sequence shall
+be translated into the following token sequence (the symbols and numeric values
+as offset extra bits shall be determined according to [RFC-1951]):
+
+  @<symbol> [ ":" <numeric-value> ] @@<symbol> [ ":" <numeric-value> ] ";"
