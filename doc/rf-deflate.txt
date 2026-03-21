@@ -644,6 +644,51 @@ sequences of the encoded bit lengths result in the following representation:
   case shall be avoided (as a consequence, 2..3 identical bit lengths at the
   end of the sequence cannot be compressed using the symbol @@@16).
 
+Example:
+
+  The input data only consists of ASCII encoded digits (i.e. 0x30..0x39) and LF
+  (0x0A) but no identical sequences are found. The literal symbols @48..@53 are
+  encoded using a bit length of 3, @54 and @55 using a bit length of 4 and @56,
+  @57, @10 and the mandatory block end marker @256 using a bit length of 5.
+
+  The resulting bit lengths are (LLIT = 257, LDIST = 1):
+
+  - 0 for @0..@9 (10 times)
+  - 5 for @10
+  - 0 for @11..47 (37 times)
+  - 3 for @48..@53 (6 times)
+  - 4 for @54..@55
+  - 5 for @56..@57
+  - 0 for @58..@255 (198 times)
+  - 5 for @256
+  - 0 for @@0
+
+  This can be represented by the following sequences of CLEN symbols and
+  offsets:
+
+    @@@17, 7, @@@5, @@@18, 26, @@@3, @@@16, 2, @@@4, @@@4, @@@5, @@@5, @@@18,
+    127, @@@18, 49, @@@5, @@@0
+
+  The symbols @@@4, @@@5 and @@@18 might be encoded by a bit length of 2 while
+  the remaining symbols might be encoded by a bit length of 4. The resulting
+  prefix codes are:
+
+    CLEN symbol  bit length  prefix code  bit sequence
+    -----------  ----------  -----------  ------------
+    @@@0                  4       0b1100  0011
+    @@@3                  4       0b1101  1011
+    @@@4                  2       0b0000  00
+    @@@5                  2       0b0001  10
+    @@@16                 4       0b1110  0111
+    @@@17                 4       0b1111  1111
+    @@@18                 2       0b0010  01
+
+  The resulting entire output as bit sequences is as follows (LCLEN = 14):
+
+    00000 00000 1110 100 100 010 100 000 000 000 000 000 010 000 010 000 100
+    1111 111 10 01 0011010 1011 0111 10 00 00 10 10 01 1111111 01 0110001 10
+    0011
+
 
 4.5 Block format
 -------------------------------------------------------------------------------
