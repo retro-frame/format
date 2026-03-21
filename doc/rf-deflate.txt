@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-27 : 01.00!01 : Ingo
+2026-03-21 : 01.00!01 : Ingo
 
   Initial version.
 
@@ -179,11 +179,15 @@ implicit value, the OFFSET is represented in the compressed data as extra bits.
 3.3 Symbol
 -------------------------------------------------------------------------------
 
-A 'SYMBOL' is a number which is used for intermediate representation of single
-bytes of the input data, a block end marker or a range of length respectively
-distance VALUES which use the same BASE. Symbols are represented by one, two
-or three a commercial at signs ('@'), followed by a number in decimal
-representation:
+A 'SYMBOL' is a number which is used for intermediate representation of
+
+- single bytes of the input data,
+- a range of length respectively distance VALUES which use the same BASE,
+- a block end marker or
+- a single bit length respectively a sequence of identical bit lengths.
+
+Symbols are represented by a number in decimal representation which is prefixed
+by one, two or three commercial at signs ('@'):
 
 - @<number> represents a literal, block end marker or length (LIT) symbol
 - @@<number> represents a distance (DIST) symbol
@@ -208,7 +212,7 @@ implicitly.
 3.5 Prefix code
 -------------------------------------------------------------------------------
 
-A 'PREFIX CODE' is a BIT SEQUENCE which distinctly represent a SYMBOL where
+A 'PREFIX CODE' is a BIT SEQUENCE which distinctly represents a SYMBOL where
 the BIT LENGTH is variable but can be determined implicitly. Although it is
 intented that the PREFIX CODES are Huffman codes (i.e. optimal regarding the
 BIT LENGTH), the term Huffman code is avoided in this documemt as the deflate
@@ -241,10 +245,11 @@ format):
 The position of the identical sequence within the sliding window is referenced
 by the backward distance relative to the current index (i.e. the byte preceding
 the current index has distance 1 and the maximum distance is 32768). Within the
-first 32768 bytes of the input data, the sliding window must be clipped (i.e.
+first 32768 bytes of the input data, the sliding window shall be clipped (i.e.
 the distance must not exceed the input data). While the sequence must start
 within the sliding window, it may overlap with the identical sequence starting
-from the current index.
+from the current index (e.g. a sequence with a distance of 4 and a length of 9
+has an overlap of five bytes with the sequence at the current index).
 
 All references to identical sequences given by the triple
 
@@ -252,39 +257,39 @@ All references to identical sequences given by the triple
 
 are intermediate information in this phase and may be stored at discretion. No
 more than one reference shall exist for each index. If more than one sequence
-was found in the sliding window, the longest sequence should be chosen (if the
-maximum length was found multiple times, the smallest distance should be
-favored).
+was found in the sliding window, the sequence with the maximum length should be
+chosen (if the maximum length was found multiple times, the smallest distance
+should be favored).
 
 Example:
 
-  index  input data (hex)  distance  length  comment
-  -----  ----------------  --------  ------  --------------------------------
-      0                00       n/a     n/a  identical sequence not possible
-      1                01       n/a     n/a  no identical sequence
-      2                AA       n/a     n/a  no identical sequence
-      3                BB       n/a     n/a  no identical sequence
-      4                00       n/a     n/a  sequence 00 01 is too short
-      5                01       n/a     n/a  sequence 01 is too short
-      6                AF       n/a     n/a  no identical sequence
-      7                00         3       5  sequence 00 01 AF 00 01 overlaps
-      8                01       n/a     n/a  part of identical sequence
-      9                AF       n/a     n/a  part of identical sequence
-     10                00       n/a     n/a  part of identical sequence
-     11                01       n/a     n/a  part of identical sequence
-     12                BE       n/a     n/a  no identical sequence
-     13                00         6       3  favor smaller distance
-     14                01       n/a     n/a  part of identical sequence
-     15                AF       n/a     n/a  part of identical sequence
-     16                FF       n/a     n/a  no identical sequence
+  index  input data  distance  length  comment
+  -----  ----------  --------  ------  --------------------------------
+      0          00       n/a     n/a  identical sequence not possible
+      1          01       n/a     n/a  no identical sequence
+      2          AA       n/a     n/a  no identical sequence
+      3          BB       n/a     n/a  no identical sequence
+      4          00       n/a     n/a  sequence 00 01 is too short
+      5          01       n/a     n/a  sequence 01 is too short
+      6          AF       n/a     n/a  no identical sequence
+      7          00         3       5  sequence 00 01 AF 00 01 overlaps
+      8          01       n/a     n/a  part of identical sequence
+      9          AF       n/a     n/a  part of identical sequence
+     10          00       n/a     n/a  part of identical sequence
+     11          01       n/a     n/a  part of identical sequence
+     12          BE       n/a     n/a  no identical sequence
+     13          00         6       3  favor smaller distance
+     14          01       n/a     n/a  part of identical sequence
+     15          AF       n/a     n/a  part of identical sequence
+     16          FF       n/a     n/a  no identical sequence
 
   As a result, the identical sequences are (7, 3, 5) and (13, 6, 3).
 
 Note that LZ77 analysis is always performed on the entire input data, even if
 the data is processed in smaller buffers and regardless of the block format
 determined later (see chapter 4.5). However, no references to other input data
-must be used, even if immediately preceding other input data may be given (e.g.
-in a file).
+must be used, even if other input data may be immediately preceding (e.g. in a
+file).
 
 On compression, in order to comply with the data format, it is not required to
 find all or the optimal identical sequences (thus, a smaller sliding window may
@@ -448,7 +453,7 @@ The following table specifies the fixed mapping for the distance symbols:
         @@0..@@29           5  00000..11101
 
 For dynamic mapping tables, a bit length in the range 1..15 must be chosen for
-each symbol. If a symbol is never used, a bit length of 0 may be chosen. The
+each symbol. If a symbol is never used, a bit length of 0 should be chosen. The
 bit lengths of the literal / length symbols as well as those of the distance
 symbols must be translated to individual bit sequences for the symbols, which
 in both cases must form a valid prefix code, by the following algorithm (let
@@ -499,8 +504,16 @@ symbols have a consecutive bit length from 1..14, only two bit sequences are
 left for a bit length of 15). On decompression, such cases shall be considered
 an invalid format.
 
+On compression, maxSymbol shall be the maximum value of the defined symbols
+(i.e. 285 for the literal / length symbols and 29 for the distance symbols),
+on decompression, undefined symbols may occur from the input (see chapter 4.4),
+resulting in maxSymbol up to 287 for the literal / length symbols and 31 for
+the distance symbols. In this case, the undefined symbols would participate in
+the calculation of the prefix codes but must never be used (i.e. if a prefix
+code of an undefined symbol occured, the format shall be considered invalid).
+
 How the the optimal lengths of the symbols is determined is not subject to the
-deflate data format (in worst case, all bit lengths are set to 15 bits). Any
+deflate data format (in worst case, all bit lengths are set to 15 bits). All
 bit lengths are valid as long as they form a valid prefix code and each symbol
 which occurs has a bit length in the range 1..15.
 
@@ -512,10 +525,10 @@ Example:
 
   symbol  tBitLen[symbol]  tPrefixCode[symbol]  bit sequence (prefix code)
   ------  ---------------  -------------------  --------------------------
-      @0                3               0b0110  110
-      @3                2               0b0010  10
-     @17                1               0b0000  0
-     @21                2               0b0111  111
+      @0                3           0b00000110  110
+      @3                2           0b00000010  10
+     @17                1           0b00000000  0
+     @21                2           0b00000111  111
 
 Now, given dynamic or fixed mapping tables, the sequence of symbols and offsets
 from the previous phase (see chapter 4.2) is translated to bit sequences where
@@ -549,11 +562,87 @@ Example:
 -------------------------------------------------------------------------------
 
 If dynamic mapping tables are used, they are stored in the following manner
-so that they can be reconstructed on decompression. Both mapping tables, the
-literal / length symbol mapping table and the distance symbol table, are
-defined by the bit lengths for each prefix code (possibly 0).
+so that they can be reconstructed on decompression.
 
-[...]
+Both mapping tables, the literal / length symbol mapping table and the distance
+symbol table, are defined by the bit lengths for each prefix code (possibly 0).
+As an intermediate step, each mapping table is represented by sequences of bit
+lengths in the range 0..15 and the length of each sequence (i.e. the number of
+bit lengths) is determined as follows:
+
+- For the literal / length symbol mapping table, trailing bit lengths of 0 may
+  be truncated as long as at least 257 bit lengths remain in the sequence. On
+  decompression, bit lengths for the undefined symbols @286 and @287 may occur
+  which would participate in the prefix code calculation but must never be used
+  (see chapter 4.3). Thus, a sequence of bit lengths with a length, denoted by
+  LLIT, of 257..286 on compression and 257..288 on decompression is used.
+
+- For the distance symbol mapping table, trailing bit lengths of 0 may be
+  truncated as long as at least one bit length remains in the sequence. On
+  decompression, bit lengths for the undefined symbols @@30 and @@31 may occur
+  which would participate in the prefix code calculation but must never be used
+  (see chapter 4.3). Thus, a sequence of bit lengths with a length, denoted by
+  LDIST, of 1..30 on compression and 1..32 on decompression is used.
+
+Now, both sequences are concatenated, resulting in a single sequence of bit
+lengths (i.e. 258..316 on compression and 258..320 on decompression), which is
+translated to a sequence of prefix code bit length (CLEN) symbols as follows:
+
+- A single bit length is represented by a CLEN symbol of the same value (e.g.
+  a bit length of 13 is represtented by the symbol @@@13).
+
+- 3..6 repeats of a bit length (possibly 0) may be represented by the symbol
+  @@16 and the number of bit lengths is represented by an offset using the base
+  3. The symbol @@@16 must not be the first symbol of the sequence as there is
+  no bit length yet to be repeated. However, the bit length to be repeated may
+  result from any CLEN symbol (e.g. a sequence of 14 bit lengths of the value 6
+  may be represented by @@6, @@16, 3, @@16, 3, @@16, 1).
+
+- 3..10 bit lengths of the value 0 may be represented by the symbol @@@17 and
+  the number of bit lengths is represented by an offset using the base 3 (e.g.
+  8 bit lengths of the value 0 may be represented by @@@17, 5).
+
+- 11..138 bit lengths of the value 0 may be represented by the symbol @@@18 and
+  the number of bit lengths is represented by an offset using the base 11 (e.g.
+  28 bit lengths of the value 0 may be represented by @@@18, 17).
+
+Finally, the symbols and offsets are encoded as bit sequences (i.e. prefix
+codes and extra bits) just like the input data (see chapter 4.3) except that a
+CLEN mapping table is used, rather than one literal / length and one distance
+mapping table, to represent the CLEN symbols and that the bit length of the
+prefix codes in that table must be in the range 0..7 rather than 0..15.
+
+The bit lengths of the CLEN mapping table are represented as the sequence of
+their values in the following order of the CLEN symbols:
+
+  @@@16, @@@17, @@@18, @@@0, @@@8, @@@7, @@@9, @@@6, @@@10, @@@5, @@@11, @@@4,
+  @@@12, @@@3, @@@13, @@@2, @@@14, @@@1, @@@15
+
+Trailing bit lengths of 0 may be truncated as long as at least 4 bit lengths
+remain in the sequence (i.e. the minimal sequence to represent the bit lengths
+of a CLEN mapping table would be @@@16, @@@17, @@@18, @@@0 which can, however,
+never occur as those symbols alone can only represent bit lengths of 0). The
+number of bit lengths of the CLEN mapping table is denoted by LCLEN.
+
+HLIT, HDEST, HCLEN, the bit lengths of the CLEN mapping table and the bit
+sequences of the encoded bit lengths result in the following representation:
+
+- LLIT - 257, encoded by 5 bits (i.e. LLIT is in the range 257..288).
+
+- LDIST - 1, encoded by 5 bits (i.e. LDIST is in the range 1..32).
+
+- LCLEN - 4, encoded by 4 bits (i.e. LCLEN is in the range 4..19).
+
+- LCLEN bit lengths of the CLEN mapping table in the given order, each encoded
+  by 3 bits (i.e. each bit length is in the range 0..7).
+
+- The bit sequences of the encoded bit lengths, using the CLEN mapping table,
+  to encode LLIT + LDIST bit lengths. Note that if the last symbol is @@@16,
+  @@@17 or @@@18, more bit lengths may result than actually required. In this
+  case, the unnecessary bit lengths shall be ignored (i.e. the number of bit
+  lengths produced by this symbol is clipped). However, on compression, this
+  case shall be avoided (as a consequence, 2..3 identical bit lengths at the
+  end of the sequence cannot be compressed using the symbol @@@16).
 
 
 4.5 Block format
@@ -652,12 +741,16 @@ complement of the size (size bytes of uncompressed input data follow):
   +---+---+---+---+---------------------------------------------+
 
 Although not explicitly stated by [RFC-1951], size should be greater than 0 on
-compression. However, a size of 0 shall be recognized on decompression. If, on
-decompression, the one's complement of size does not match the size (i.e. size
-does not equal ~SIZE), decompression may be continued but a warning should be
-given. Note that if a block is uncompressed, the results of all previous phases
-are discarded. However, the input data which is stored as uncompressed data may
-still be part of the sliding window for LZ77 analysis of the next block(s).
+compression except if not input data is given at all and an uncompressed block
+is explicitly chosen (in general, the shortest deflate sequence to represent
+empty input data, is a compressed block using fixed mapping tables with the
+block end marker as the only symbol). However, a size of 0 shall be recognized
+on decompression. If, on decompression, the one's complement of size does not
+match the size (i.e. size does not equal ~SIZE), decompression may be continued
+but a warning should be given. Note that if a block is uncompressed, the
+results of all previous phases are discarded. However, the input data which is
+stored as uncompressed data may still be part of the sliding window for LZ77
+analysis of the next block(s).
 
 Compressed blocks immediately start after the block header. If dynamic mapping
 tables are used, the mapping table representation (see chapter 4.4) is stored
