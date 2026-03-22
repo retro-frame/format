@@ -96,8 +96,8 @@ be used by other specifications.
 1.2 Scope
 -------------------------------------------------------------------------------
 
-This document provides a Retro-Frame specification of the Deflate Compressed
-Data Format according to [RFC-1951].
+This document provides a description of the Deflate Compressed Data Format
+according to [RFC-1951].
 
 
 1.3 References
@@ -133,10 +133,10 @@ algorithms. Compliance to the data format should result in interoperability
 been compressed by another program). However, there may be subtle differences
 in the implementations which may lead to incompatibility (e.g. an encoding
 which was considered valid by the compressor but invalid by the decompressor).
-In this document, the rules to encode compressed data may be more strict than
-the rules to decode compressed data following the goal that compressed data
-can be decompressed by any other program while decompression should accept all
-possible encodings as long as they are unambiguous.
+In this document, the rules desribed to encode compressed data may be more
+strict than the rules to decode compressed data following the goal that
+compressed data can be decompressed by any other program while decompression
+should accept all possible encodings as long as they are unambiguous.
 
 Not subject to this document are the compression algorithms. The compression
 ratio highly depends on the following choices by the compression algorithms:
@@ -162,18 +162,18 @@ select appropriate algorithms in order to achieve a good compression ratio.
 -------------------------------------------------------------------------------
 
 A 'VALUE' is a number which represents a single byte of the input data or the
-actual length respectively distance of the reference to an identical byte
-sequence. The value of a single byte of the input data is represented in
-hexadecimal notation while the value of a length or distance is represented in
-decimal notation.
+actual amount of a property (e.g. a distance or a bit length). The value of a
+single byte of the input data is always represented in hexadecimal notation.
+Otherwise, a value is represented by a C-style constant (i.e. decimal notation
+unless prefixed by "0x" for hexadecimal notation or "0b" for binary notation).
 
 
 3.2 Base / offset
 -------------------------------------------------------------------------------
 
-A 'BASE' is a predefined length or distance VALUE. An 'OFFSET' is a summand of
-a length or distance VALUE so that VALUE = BASE + OFFSET. While the BASE is an
-implicit value, the OFFSET is represented in the compressed data as extra bits.
+A 'BASE' is a VALUE which is defined implicitly. An 'OFFSET' is a summand of a
+VALUE so that VALUE = BASE + OFFSET. Unlike the BASE, the OFFSET is represented
+explicitly in the compressed data as extra bits.
 
 
 3.3 Symbol
@@ -773,7 +773,7 @@ are inserted until the next byte boundary is reached (those paddings bits shall
 be set to 0 on compression and ignored on decompression).
 
 Then, the next 4 bytes represent the the size of the uncompressed data by two
-UINT-16 values in little-endian order where the secont value is the one's
+UINT-16 values in little-endian order where the second value is the one's
 complement of the size and size bytes of uncompressed input data follow:
 
   +---+---+---+---+---------------------------------------------+

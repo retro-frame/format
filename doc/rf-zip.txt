@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-17 : 01.00!01 : Ingo
+2026-03-22 : 01.00!01 : Ingo
 
   Draft.
 
@@ -58,7 +58,7 @@ Contents
 
 2. OVERVIEW
 
-3. BINARY DATA FORMAT
+3. MINIMAL ZIP FORMAT
    3.1  Characteristics
    3.2  Syntax
    3.3  Semantics
@@ -89,7 +89,8 @@ be used by other specifications.
 1.2 Scope
 -------------------------------------------------------------------------------
 
-This document provides a description of the ZIP Data Format according to [ZIP].
+This document provides an incomplete description of the ZIP Data Format. For
+the full specification, see [ZIP].
 
 
 1.3 References
@@ -110,29 +111,141 @@ APPNOTE.TXT - .ZIP File Format Specification, PKWARE Inc., see
 2. OVERVIEW
 ===============================================================================
 
+This document contains descriptions of subsets of the ZIP Data Format according
+to [ZIP]. Thus, compliance to a data format described in this document should
+lead to [ZIP] compliant data formats. However, some data formats compliant to
+[ZIP] may be not covered.
+
+The individual limitations of the subsets are explained in the respective
+"Characteristics" chapters.
 
 
-3. BINARY DATA FORMAT
+3. MINIMAL ZIP FORMAT
 ===============================================================================
 
 
 3.1 Characteristics
 -------------------------------------------------------------------------------
 
-ZIP is a self-delimiting binary data format which may span multiple streams. It
-may be useful to process the format from the end of the last stream.
+Minimal ZIP is a self-delimiting binary data format which is a subset of the
+ZIP Data Format specified by [ZIP] with the following limitations:
 
-If self-delimited, the value 0xFF represents the end of the text stream.
+- Only the following structures are specified:
 
-The format version is represented in the format <major-version>.<minor-version>
-where <major-version> is a decimal number in the range 1..25 (although a major
-version 0 may occur) and <minor-version> is a decimal number in the range 0..9
-(0..5 for major version 25).
+  - local file headers (ZIP_STREAM_HEADER)
+  - file data (ZIP_STREAM_DATA)
+  - central directory headers (ZIP_DIR_HEADER)
+  - end of central directory record (ZIP_END_RECORD)
+
+  As a consequence, neither encryption nor data descriptors are provided.
+
+- The compression methods are limited to 0 (no compression) and 8 (deflate).
+
+- Extra fields and comments shall not be written and are ignored on read.
+
+- The external file attributes, if given, must be MS-DOS compatible (i.e. the
+  high byte of the version made by must be 0).
+
+- The ZIP archive must not span multiple disks (i.e. the number of the disk
+  where the end of central directory record is located must be 0).
 
 
 3.2 Syntax
 -------------------------------------------------------------------------------
 
+ZIP_EXTRACT_VERSION format:
+
+   2 BYTES  EXTRACT_VERSION  : UINT-16LE = 20  ; require version 2.0 or higher
+
+ZIP_FLAGS format:
+
+   2 BYTES  FLAGS  : UINT-16LE
+
+ZIP_COMPRESSION_METHOD format:
+
+   2 BYTES  COMPRESSION_METHOD  : UINT-16LE  ; 0 = uncompressed, 8 = deflate
+
+ZIP_DATE_TIME format:
+
+   2 BYTES  TIME  : UINT-16LE  ; MS-DOS encoded time
+   2 BYTES  DATE  : UINT-16LE  ; MS-DOS encoded date
+
+ZIP_PATH format:
+
+   ? BYTES  PATH  ; CP-437 or UTF-8 encoded relative path
+
+ZIP_STREAM_HEADER format:
+
+     4 BYTES  SIGNATURE               : UINT-32LE = 0x04034B50
+     2 BYTES  ZIP_EXTRACT_VERSION
+     2 BYTES  ZIP_FLAGS
+     2 BYTES  ZIP_COMPRESSION_METHOD
+     4 BYTES  ZIP_DATE_TIME
+     4 BYTES  CRC32                   : UINT-32LE = GetCRC32(ZIP_DATA)
+     4 BYTES  SIZE_COMPRESSED         : UINT-32LE
+     4 BYTES  SIZE_UNCOMPRESSED       : UINT-32LE
+     2 BYTES  PATH_LEN                : UINT-16LE = pLen
+     2 BYTES  EXTRA_LEN               : UINT-16LE = eLen  ; shall be 0 on write
+  pLen BYTES  ZIP_PATH
+  eLen BYTES  EXTRA_DATA              ; unspecified data (ignore on read)
+
+ZIP_STREAM format:
+
+   ? BYTES  ZIP_STREAM_HEADER
+   ? BYTES  ZIP_STREAM_DATA    ; unspecified data (uncompressed if method == 0
+                               ; or deflate format if method == 8)
+
+ZIP_DATA format:
+
+   ? BYTES  ZIP_STREAM[0]
+            ...
+   ? BYTES  ZIP_STREAM[n - 1]
+
+ZIP_DIR_HEADER format:
+
+     4 BYTES  SIGNATURE               : UINT-32LE = 0x02014B50
+     2 BYTES  VERSION_CREATE          : UINT-16LE = 20
+     2 BYTES  ZIP_EXTRACT_VERSION
+     2 BYTES  ZIP_FLAGS
+     2 BYTES  ZIP_COMPRESSION_METHOD
+     4 BYTES  ZIP_DATE_TIME
+     4 BYTES  CRC32                   : UINT-32LE = GetCRC32(ZIP_DATA)
+     4 BYTES  SIZE_COMPRESSED         : UINT-32LE
+     4 BYTES  SIZE_UNCOMPRESSED       : UINT-32LE
+     2 BYTES  PATH_LEN                : UINT-16LE = pLen
+     2 BYTES  EXTRA_LEN               : UINT-16LE = eLen  ; shall be 0 on write
+     2 BYTES  COMMENT_LEN             : UINT-16LE = cLen  ; shall be 0 on write
+     2 BYTES  START_PART              : UINT-16LE = 0
+     2 BYTES  ATTR_INTERNAL           : UINT-16LE = 0
+     4 BYTES  ATTR_EXTERNAL           : UINT-32LE = 0
+     4 BYTES  STREAM_OFFSET           ; position of corresponding ZIP_STREAM
+  pLen BYTES  ZIP_PATH
+  eLen BYTES  EXTRA_DATA              ; unspecified data (ignore on read)
+  cLen BYTES  COMMENT                 ; unspecified data (ignore on read)
+
+ZIP_DIR format:
+
+   ? BYTES  ZIP_DIR_HEADER[0]
+            ...
+   ? BYTES  ZIP_DIR_HEADER[n - 1]
+
+ZIP_END_RECORD format:
+
+     4 BYTES  SIGNATURE       : UINT-32LE = 0x06054B50
+     2 BYTES  MAX_PART        : UINT-16LE = 0
+     2 BYTES  DIR_START_PART  : UINT-16LE = 0
+     2 BYTES  PART_DIR_COUNT  : UINT-16LE = n
+     2 BYTES  DIR_COUNT       : UINT-16LE = n
+     4 BYTES  DIR_SIZE        : UINT-32LE = GetSize(ZIP_DIR)
+     4 BYTES  DIR_OFFSET      : UINT-32LE = GetSize(ZIP_DATA)
+     2 BYTES  COMMENT_LEN     : UINT-16LE = cLen
+  cLen BYTES  COMMENT         ; unspecified data (ignore on read)
+
+ZIP format:
+
+   ? BYTES  ZIP_DATA
+   ? BYTES  ZIP_DIR
+   ? BYTES  ZIP_END_RECORD
 
 
 3.3 Semantics
