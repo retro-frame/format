@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-03-21 : 01.00!01 : Ingo
+2026-03-22 : 01.00!01 : Ingo
 
   Initial version.
 
@@ -202,11 +202,13 @@ to a VALUE implicitly (e.g. @@12 - 3 = 9).
 
 A 'BIT SEQUENCE' is the binary representation of a number with a defined number
 of bits in a defined order which represents an atomic unit of the deflate data
-format. The 'BIT LENGTH' is the number of bits of a BIT SEQUENCE. Note that
-the bit length is not necessarily a multiple of 8 and that the bit order is
-independent from the byte order. On decompression, the bit length must be known
-in advance except for PREFIX CODES where the bit length can be determined
-implicitly.
+format. The 'BIT LENGTH' is the number of bits of a BIT SEQUENCE.
+
+Note that the bit length is not necessarily a multiple of 8 and that in the
+textual representation the most significant (i.e. high) bits always come first
+while the encoding of bit seqeuences in bytes will reverse the bit order (see
+chapter 4.4). On decompression, the bit length must be known in advance except
+for PREFIX CODES where the bit length can be determined implicitly.
 
 
 3.5 Prefix code
@@ -307,7 +309,7 @@ and offsets considering the identical sequences found before (see chapter 4.1):
   original values (i.e. 0x00..0xFF) of single bytes of the input data which
   are not part of an identical sequence.
 
-- The symbol @256 is a block end marker (see capter 4.5) and reserved in this
+- The symbol @256 is a block end marker (see chapter 4.5) and reserved in this
   phase.
 
 - The symbols @257..@285 are called length symbols and represent a reference to
@@ -418,8 +420,8 @@ information which may be stored at discretion.
 4.3 Encoding as bit sequences
 -------------------------------------------------------------------------------
 
-All symbols from the previous phase are encoded by a variable number of bits
-which are taken from two different mapping tables:
+All symbols from the previous phase are encoded by bit sequences which are
+taken from two different mapping tables:
 
 - One table maps all literal and length symbols as well as the symbol @256
   (which is a block end marker, see chapter 4.5) in the range @0..@285 to bit
@@ -427,11 +429,6 @@ which are taken from two different mapping tables:
 
 - The other table maps all distance symbols in the range @@0..@@29 to bit
   sequences which must form a valid prefix code.
-
-Offsets, if given, are encode by a fixed number of extra bits which is the
-minimum number of bits capable to represent the full range of offsets as
-specified for each symbol (e.g. for the symbol @279, the range of offsets is
-0..15, so that 4 extra bits are used).
 
 The deflate data format specifies that either dynamic mapping tables or the
 fixed mapping tables are used.
@@ -452,14 +449,18 @@ The following table specifies the fixed mapping for the distance symbols:
   ---------------  ----------  --------------------------
         @@0..@@29           5  00000..11101
 
-For dynamic mapping tables, a bit length in the range 1..15 must be chosen for
-each symbol. If a symbol is never used, a bit length of 0 should be chosen. The
-bit lengths of the literal / length symbols as well as those of the distance
-symbols must be translated to individual bit sequences for the symbols, which
-in both cases must form a valid prefix code, by the following algorithm (let
-maxSymbol the the maximum symbol value and tBitLen[maxSymbol + 1] an array of
-the bit lengths for each symbol while tPrefixCode[maxSymbol + 1] receives the
-resulting bit sequences of the prefix code as unsigned integers):
+For dynamic mapping tables, a bit length in the range 0..15 must be chosen for
+each symbol. A bit length of 0 means that a symbol cannot be represented by a
+bit sequene. Thus, symbols which are actually used must not have a bit length
+of 0. How the the optimal lengths of the symbols is determined is not subject
+to the deflate data format (in worst case, all bit lengths are set to 15 bits).
+
+Given the individual bit lengths, the bit sequences (i.e. prefix codes) for the
+literal / length symbols as well as those for the distance symbols must be
+determined by the following algorithm (let maxSymbol the maximum symbol value
+and tBitLen[maxSymbol + 1] an array of the bit lengths for each symbol while
+tPrefixCode[maxSymbol + 1] receives the resulting bit sequences of the prefix
+code as unsigned integers):
 
   /* count the number of occurrences for each bit length: */
 
@@ -512,11 +513,6 @@ the distance symbols. In this case, the undefined symbols would participate in
 the calculation of the prefix codes but must never be used (i.e. if a prefix
 code of an undefined symbol occured, the format shall be considered invalid).
 
-How the the optimal lengths of the symbols is determined is not subject to the
-deflate data format (in worst case, all bit lengths are set to 15 bits). All
-bit lengths are valid as long as they form a valid prefix code and each symbol
-which occurs has a bit length in the range 1..15.
-
 Example:
 
   The following mapping table shows for the symbols @0, @3, @17 and @21 with
@@ -530,12 +526,12 @@ Example:
      @17                1           0b00000000  0
      @21                2           0b00000111  111
 
-Now, given dynamic or fixed mapping tables, the sequence of symbols and offsets
-from the previous phase (see chapter 4.2) is translated to bit sequences where
-the symbols are encoded by the corresponding prefix codes of the respective
-mapping table in reversed order (i.e. least significant bit first) and the
-offsets, if given, are represented by the number of extra bits in normal order
-(i.e. most significant bit first).
+Offsets, if given, are encode by a fixed number of extra bits. The bit sequence
+is the binary representation of the offset value in reversed order (i.e. least
+significant bits come first) and the bit length is the minimum number of bits
+capable to represent the full range of offsets as specified for each symbol
+(e.g. for the symbol @279, the range of offsets is 0..15, so that 4 extra bits
+are used, and an offset of value 5 would be represented as 1010).
 
 Example:
 
@@ -545,27 +541,29 @@ Example:
 
   literal / length symbol  distance symbol  distance offset  bit sequences
   -----------------------  ---------------  ---------------  ---------------
-                       @0              n/a              n/a  00001100
-                       @1              n/a              n/a  10001100
-                     @170              n/a              n/a  010101011
+                       @0              n/a              n/a  00110000
+                       @1              n/a              n/a  00110001
+                     @170              n/a              n/a  110101010
                      @187              n/a              n/a  110111011
-                       @0              n/a              n/a  00001100
-                       @1              n/a              n/a  10001100
-                     @175              n/a              n/a  111101011
-                     @259              @@2              n/a  1100000 00010
-                     @190              n/a              n/a  011111011
-                     @257              @@4                1  1000000 00100 1
+                       @0              n/a              n/a  00110000
+                       @1              n/a              n/a  00110001
+                     @175              n/a              n/a  110101111
+                     @259              @@2              n/a  0000011 00010
+                     @190              n/a              n/a  110111110
+                     @257              @@4                1  0000001 00100 1
                      @255              n/a              n/a  111111111
 
 
 4.4 Dynamic mapping table representation
 -------------------------------------------------------------------------------
 
-If dynamic mapping tables are used, they are stored in the following manner
-so that they can be reconstructed on decompression.
+If dynamic mapping tables are used, they are stored in the following manner so
+that they can be reconstructed on decompression.
 
 Both mapping tables, the literal / length symbol mapping table and the distance
-symbol table, are defined by the bit lengths for each prefix code (possibly 0).
+symbol table, are defined by the individual bit lengths of the prefix codes of
+the symbols in ascending order of the symbol values.
+
 As an intermediate step, each mapping table is represented by sequences of bit
 lengths in the range 0..15 and the length of each sequence (i.e. the number of
 bit lengths) is determined as follows:
@@ -574,29 +572,32 @@ bit lengths) is determined as follows:
   be truncated as long as at least 257 bit lengths remain in the sequence. On
   decompression, bit lengths for the undefined symbols @286 and @287 may occur
   which would participate in the prefix code calculation but must never be used
-  (see chapter 4.3). Thus, a sequence of bit lengths with a length, denoted by
-  LLIT, of 257..286 on compression and 257..288 on decompression is used.
+  (see chapter 4.3). Thus, a sequence of bit lengths with 257..286 elements on
+  compression and 257..288 elements decompression is used. The number of bit
+  lengths in the sequence is denoted by #LIT.
 
 - For the distance symbol mapping table, trailing bit lengths of 0 may be
   truncated as long as at least one bit length remains in the sequence. On
   decompression, bit lengths for the undefined symbols @@30 and @@31 may occur
   which would participate in the prefix code calculation but must never be used
-  (see chapter 4.3). Thus, a sequence of bit lengths with a length, denoted by
-  LDIST, of 1..30 on compression and 1..32 on decompression is used.
+  (see chapter 4.3). Thus, a sequence of bit lengths with 1..30 elements on
+  compression and 1..32 on elements decompression is used. The number of bit
+  lengths in the sequence is denoted by #DIST.
 
 Now, both sequences are concatenated, resulting in a single sequence of bit
-lengths (i.e. 258..316 on compression and 258..320 on decompression), which is
-translated to a sequence of prefix code bit length (CLEN) symbols as follows:
+lengths (i.e. 258..316 elements on compression and 258..320 elements on
+decompression), which is translated to a sequence of prefix code bit length
+(CLEN) symbols as follows:
 
 - A single bit length is represented by a CLEN symbol of the same value (e.g.
   a bit length of 13 is represtented by the symbol @@@13).
 
-- 3..6 repeats of a bit length (possibly 0) may be represented by the symbol
-  @@16 and the number of bit lengths is represented by an offset using the base
-  3. The symbol @@@16 must not be the first symbol of the sequence as there is
-  no bit length yet to be repeated. However, the bit length to be repeated may
-  result from any CLEN symbol (e.g. a sequence of 14 bit lengths of the value 6
-  may be represented by @@6, @@16, 3, @@16, 3, @@16, 1).
+- 3..6 repeats of a bit length may be represented by the symbol @@@16 and the
+  number of bit lengths is represented by an offset using the base 3. The
+  symbol @@@16 must not be the first symbol of the sequence as there is no
+  bit length yet to be repeated. However, the bit length to be repeated may
+  result from any CLEN symbol (e.g. a sequence of 14 bit lengths of the value
+  6 may be represented by @@@6, @@@16, 3, @@@16, 3, @@@16, 1).
 
 - 3..10 bit lengths of the value 0 may be represented by the symbol @@@17 and
   the number of bit lengths is represented by an offset using the base 3 (e.g.
@@ -606,10 +607,10 @@ translated to a sequence of prefix code bit length (CLEN) symbols as follows:
   the number of bit lengths is represented by an offset using the base 11 (e.g.
   28 bit lengths of the value 0 may be represented by @@@18, 17).
 
-Finally, the symbols and offsets are encoded as bit sequences (i.e. prefix
-codes and extra bits) just like the input data (see chapter 4.3) except that a
-CLEN mapping table is used, rather than one literal / length and one distance
-mapping table, to represent the CLEN symbols and that the bit length of the
+The symbols and offsets are encoded as bit sequences (i.e. prefix codes and
+extra bits) just like the input data (see chapter 4.3) except that a CLEN
+mapping table is used, rather than one literal / length and one distance
+mapping table, to represent the CLEN symbols and that the bit lengths of the
 prefix codes in that table must be in the range 0..7 rather than 0..15.
 
 The bit lengths of the CLEN mapping table are represented as the sequence of
@@ -622,26 +623,30 @@ Trailing bit lengths of 0 may be truncated as long as at least 4 bit lengths
 remain in the sequence (i.e. the minimal sequence to represent the bit lengths
 of a CLEN mapping table would be @@@16, @@@17, @@@18, @@@0 which can, however,
 never occur as those symbols alone can only represent bit lengths of 0). The
-number of bit lengths of the CLEN mapping table is denoted by LCLEN.
+number of bit lengths of the CLEN mapping table is denoted by #CLEN.
 
-HLIT, HDEST, HCLEN, the bit lengths of the CLEN mapping table and the bit
+#LIT, #DEST, #CLEN, the bit lengths of the CLEN mapping table and the bit
 sequences of the encoded bit lengths result in the following representation:
 
-- LLIT - 257, encoded by 5 bits (i.e. LLIT is in the range 257..288).
+- #LIT - 257, encoded by 5 bits (i.e. LLIT is in the range 257..288) in
+  reversed order (i.e. least significant bits come first).
 
-- LDIST - 1, encoded by 5 bits (i.e. LDIST is in the range 1..32).
+- #DIST - 1, encoded by 5 bits (i.e. LDIST is in the range 1..32) in reversed
+  order (i.e. least significant bits come first).
 
-- LCLEN - 4, encoded by 4 bits (i.e. LCLEN is in the range 4..19).
+- #CLEN - 4, encoded by 4 bits (i.e. LCLEN is in the range 4..19) in reversed
+  order (i.e. least significant bits come first).
 
-- LCLEN bit lengths of the CLEN mapping table in the given order, each encoded
-  by 3 bits (i.e. each bit length is in the range 0..7).
+- #CLEN bit lengths of the CLEN mapping table in the given order, each encoded
+  by 3 bits (i.e. each bit length is in the range 0..7), in reversed order
+  (i.e. least significant bits come first).
 
 - The bit sequences of the encoded bit lengths, using the CLEN mapping table,
-  to encode LLIT + LDIST bit lengths. Note that if the last symbol is @@@16,
+  to encode #LIT + #DIST bit lengths. Note that if the last symbol is @@@16,
   @@@17 or @@@18, more bit lengths may result than actually required. In this
   case, the unnecessary bit lengths shall be ignored (i.e. the number of bit
   lengths produced by this symbol is clipped). However, on compression, this
-  case shall be avoided (as a consequence, 2..3 identical bit lengths at the
+  case shall be avoided (as a consequence, 2 or 3 identical bit lengths at the
   end of the sequence cannot be compressed using the symbol @@@16).
 
 Example:
@@ -651,7 +656,7 @@ Example:
   encoded using a bit length of 3, @54 and @55 using a bit length of 4 and @56,
   @57, @10 and the mandatory block end marker @256 using a bit length of 5.
 
-  The resulting bit lengths are (LLIT = 257, LDIST = 1):
+  The resulting bit lengths are (#LIT = 257, #DIST = 1):
 
   - 0 for @0..@9 (10 times)
   - 5 for @10
@@ -673,21 +678,21 @@ Example:
   the remaining symbols might be encoded by a bit length of 4. The resulting
   prefix codes are:
 
-    CLEN symbol  bit length  prefix code  bit sequence
-    -----------  ----------  -----------  ------------
-    @@@0                  4       0b1100  0011
-    @@@3                  4       0b1101  1011
-    @@@4                  2       0b0000  00
-    @@@5                  2       0b0001  10
-    @@@16                 4       0b1110  0111
-    @@@17                 4       0b1111  1111
-    @@@18                 2       0b0010  01
+    CLEN symbol  bit length  prefix code
+    -----------  ----------  -----------
+    @@@0                  4  1100
+    @@@3                  4  1101
+    @@@4                  2  00
+    @@@5                  2  01
+    @@@16                 4  1110
+    @@@17                 4  1111
+    @@@18                 2  10
 
-  The resulting entire output as bit sequences is as follows (LCLEN = 14):
+  The resulting entire output as bit sequences is as follows (#CLEN = 14):
 
-    00000 00000 1110 100 100 010 100 000 000 000 000 000 010 000 010 000 100
-    1111 111 10 01 0011010 1011 0111 10 00 00 10 10 01 1111111 01 0110001 10
-    0011
+    00000 00000 0111 001 001 010 001 000 000 000 000 000 010 000 010 000 001
+    1111 111 01 10 0101100 1101 1110 01 00 00 01 01 10 1111111 10 1000110 01
+    1100
 
 
 4.5 Block format
@@ -709,93 +714,23 @@ data cannot be compressed (i.e. the compressed size would be greater or equal
 than the uncompressed size). Note that the LZ77 analysis (see chapter 4.1) is
 independent from the blocks chosen.
 
-As the result of the prefix encoding (see chapter 4.3) as well as the dynamic
-mapping table representation (see chapter 4.4) is a sequence of bit sequences,
-compressed blocks must translate a sequence of bits into a sequence of bytes by
-the following algorithm which requires the length of the bit sequence for the
-portion of data to be stored (bitSequence is a UINT value with the bit sequence
-for the portion of data, bitLen is the length of the bit sequence, tOutput[]
-is an array of UINT-8 values, initialized by 0, outputIndex is the current
-index of tOutput and outputBitLen is the number of bits currently stored in
-tOutput[outputIndex], initialized by 0):
-
-  while (bitLen > 0)
-  {
-      if (bitSequence & 1)
-      {
-          tOutput[outputIndex] = tOutput[outputIndex] | (1 << outputBitLen);
-      }
-      
-      bitSequence = bitSequence >> 1;
-      bitLen = bitLen - 1;
-      outputBitLen = outputBitLen + 1;
-      
-      if (outputBitLen >= 8)
-      {
-          outputIndex = outputIndex + 1;
-          outputBitLen = 0;
-      }
-  }
-
 Each block has a header of 3 bits which immediately follows the last bit of a
 previous block, if given:
 
-- The least significand bit (LSB) is a flag which indicates the last block if
-  set to 1. Thus, the deflate data format is self delimiting.
+- The least significand bit is a flag which indicates the last block if set to
+  1. Thus, the deflate data format is self delimiting.
 
-- The two most significand bits (MSB) represent the encoding method (the bit
-  sequence 11 is invalid):
+- The two most significand bits represent the encoding method (the bit sequence
+  11 is invalid):
 
   00: uncompressed block
   01: compressed blocks using fixed mapping tables
   10: compressed blocks using dynamic mapping tables
 
-Note that the header may also be processed by two individual bit sequences of
-the lengths 1 for the last block flag and 2 for the encoding method.
-
-While compressed blocks have no size limit, uncompressed blocks are limited to
-65535 bytes. If an uncompressed block is indicated by the block header, the
-remaining output bits are skiped first (shall be set to 0 on compression and
-ignored on decompression):
-
-  if (outputBitLen > 0)
-  {
-      outputIndex = outputIndex + 1;
-      outputBitLen = 0;
-  }
-
-Then, the next 4 bytes represent the the size of the uncompressed data by two
-UINT-16 values in little-endian order where the secont value is the one's
-complement of the size (size bytes of uncompressed input data follow):
-
-  tOutput[outputIndex] = size & 0xFF;
-  tOutput[outputIndex + 1] = (size >> 8) & 0xFF;
-  tOutput[outputIndex + 2] = ~size & 0xFF;
-  tOutput[outputIndex + 3] = (~size >> 8) & 0xFF;
-  outputIndex = outputIndex + 4;
-
-  while (size > 0)
-  {
-      tOutput[outputIndex] = tInput[inputIndex];
-      outputIndex = outputIndex + 1;
-      inputIndex = inputIndex + 1;
-  }
-
-  +---+---+---+---+---------------------------------------------+
-  |  size | ~SIZE |  uncompressed block of input data (UINT-8)  |
-  +---+---+---+---+---------------------------------------------+
-
-Although not explicitly stated by [RFC-1951], size should be greater than 0 on
-compression except if not input data is given at all and an uncompressed block
-is explicitly chosen (in general, the shortest deflate sequence to represent
-empty input data, is a compressed block using fixed mapping tables with the
-block end marker as the only symbol). However, a size of 0 shall be recognized
-on decompression. If, on decompression, the one's complement of size does not
-match the size (i.e. size does not equal ~SIZE), decompression may be continued
-but a warning should be given. Note that if a block is uncompressed, the
-results of all previous phases are discarded. However, the input data which is
-stored as uncompressed data may still be part of the sliding window for LZ77
-analysis of the next block(s).
+The block header is encoded by a bit sequence in reversed order (i.e. least
+significant bits come first). Note that the header may also be processed by two
+individual bit sequences of the lengths 1 for the last block flag and 2 for the
+encoding method.
 
 Compressed blocks immediately start after the block header. If dynamic mapping
 tables are used, the mapping table representation (see chapter 4.4) is stored
@@ -803,3 +738,65 @@ first. Then, regardless which mapping tables are used, the prefix encoded
 symbols and extra bits (see chapter 4.3) are stored bit sequence by bit
 sequence and eventually the block is terminated by the bit sequence which
 represents the symbol @256 (thus, this code must not have a bit length of 0).
+
+The bit sequences are packed into bytes starting on the least significant bit
+of the byte. Note that this will reverse the bit order bytewise.
+
+Example:
+
+  The start of a compressed block, which is not the final block, using the
+  mapping table representation from the example of chapter 4.4, would result
+  in the following bit sequences:
+
+    001 00000 00000 0111 001 001 010 001 000 000 000 000 000 010 000 010 000
+    001 1111 111 01 10 0101100 1101 1110 01 00 00 01 01 10 1111111 10 1000110
+    01 1100
+
+  The bit sequences are now grouped by 8 bits:
+
+    00100000 00000011 10010010 10001000 00000000 00000100 00010000
+    00111111 11011001 01100110 11110010 00001011 01111111 10100011
+    0011100
+
+  This results in the following byte sequence (note that the last group of bits
+  is incomplete so that the most significant bit of that byte, represented by a
+  question mark '?', depends on the following data):
+
+    00000100 11000000 01001001 00010001 00000000 00100000 00001000
+    11111100 10011011 01100110 01001111 11010000 11111110 11000101
+    ?0011100
+
+While compressed blocks have no size limit, uncompressed blocks are limited to
+65535 bytes. If an uncompressed block is indicated by the block header and the
+last bit of the block header does not align on a byte boundary, padding bits
+are inserted until the next byte boundary is reached (those paddings bits shall
+be set to 0 on compression and ignored on decompression).
+
+Then, the next 4 bytes represent the the size of the uncompressed data by two
+UINT-16 values in little-endian order where the secont value is the one's
+complement of the size and size bytes of uncompressed input data follow:
+
+  +---+---+---+---+---------------------------------------------+
+  |  size | ~SIZE |  uncompressed block of input data (UINT-8)  |
+  +---+---+---+---+---------------------------------------------+
+
+Example:
+
+  The input data 0xA0 0xCD 0x8F would be represented by an uncompressed block,
+  which is only block (i.e. the first as well as the last block), by the
+  following byte sequence:
+
+  0x01 0x03 0x00 0xFC 0xFF 0xA0 0xCD 0x8F
+
+Although not explicitly stated by [RFC-1951], size should be greater than 0 on
+compression except if no input data is given at all and an uncompressed block
+is explicitly required (in general, the shortest deflate sequence to represent
+empty input data, is a compressed block using fixed mapping tables with the
+block end marker as the only symbol). However, a size of 0 shall be recognized
+on decompression. If, on decompression, the one's complement of size (~SIZE)
+does not match the size (i.e. size XOR ~SIZE is not 0xFFFF), decompression may
+be continued but a warning should be given.
+
+Note that if a block is uncompressed, the results of all previous phases are
+discarded. However, the input data which is stored as uncompressed data may
+still be part of the sliding window for LZ77 analysis of the next block(s).
