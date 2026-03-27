@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-03-22 : 01.00!01 : Ingo
+2026-03-27 : 01.00!01 : Ingo
 
   Initial version.
 
@@ -71,6 +71,8 @@ Contents
    4.3  Encoding as bit sequences
    4.4  Dynamic mapping table representation
    4.5  Block format
+
+5. SECURITY CONSIDERATIONS
 
 
 
@@ -382,7 +384,7 @@ offsets, depending on the distance values:
      8193..16384       @@26..@@27  8193 + (symbol - 26) * 4096          0..4095
     16385..32768       @@28..@@29  16385 + (symbol - 28) * 8192         0..8191
 
-On compression, the distance  symbol shall be determined by finding the maximum
+On compression, the distance symbol shall be determined by finding the maximum
 symbol where distance value is greater or equal than the distance base (e.g.
 distance 99 matches symbol @@13 with distance base 65 + (@@13 - 12) * 32 = 97
 but not symbol @@14 with distance base 129 + (@@14 - 14) * 64 = 129). On
@@ -628,13 +630,13 @@ number of bit lengths of the CLEN mapping table is denoted by #CLEN.
 #LIT, #DEST, #CLEN, the bit lengths of the CLEN mapping table and the bit
 sequences of the encoded bit lengths result in the following representation:
 
-- #LIT - 257, encoded by 5 bits (i.e. LLIT is in the range 257..288) in
+- #LIT - 257, encoded by 5 bits (i.e. #LIT is in the range 257..288) in
   reversed order (i.e. least significant bits come first).
 
-- #DIST - 1, encoded by 5 bits (i.e. LDIST is in the range 1..32) in reversed
+- #DIST - 1, encoded by 5 bits (i.e. #DIST is in the range 1..32) in reversed
   order (i.e. least significant bits come first).
 
-- #CLEN - 4, encoded by 4 bits (i.e. LCLEN is in the range 4..19) in reversed
+- #CLEN - 4, encoded by 4 bits (i.e. #CLEN is in the range 4..19) in reversed
   order (i.e. least significant bits come first).
 
 - #CLEN bit lengths of the CLEN mapping table in the given order, each encoded
@@ -783,7 +785,7 @@ complement of the size and size bytes of uncompressed input data follow:
 Example:
 
   The input data 0xA0 0xCD 0x8F would be represented by an uncompressed block,
-  which is only block (i.e. the first as well as the last block), by the
+  which is the only block (i.e. the first as well as the last block), by the
   following byte sequence:
 
   0x01 0x03 0x00 0xFC 0xFF 0xA0 0xCD 0x8F
@@ -800,3 +802,23 @@ be continued but a warning should be given.
 Note that if a block is uncompressed, the results of all previous phases are
 discarded. However, the input data which is stored as uncompressed data may
 still be part of the sliding window for LZ77 analysis of the next block(s).
+
+
+5. SECURITY CONSIDERATIONS
+===============================================================================
+
+As some few aspects of the [RFC-1951] are ambiguous and may thus be implemented
+differently, in particular regarding dynamic mapping table representation and
+the algorithm to determine the prefix codes from the symbol bit lengths, the
+same compressed data might result in different decompressed data.
+
+For example, the symbols @286 and @287 are undefined and are thus not expected
+to occur. However, if they occur, they might or might not participate in the
+algorithm to determine the prefix codes resulting in different prefix codes for
+symbols with a greater bit length.
+
+While the description in this document has the goal to be able to decompress
+as much encodings as possible, the more strict rules for compression should be
+observed (and input data should be considered invalid if those rules are not
+met) if it is vital in terms of security that the decompressed data does not
+contain unexpected results.

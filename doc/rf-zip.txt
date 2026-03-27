@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-03-22 : 01.00!01 : Ingo
+2026-03-27 : 01.00!01 : Ingo
 
   Draft.
 
@@ -144,10 +144,9 @@ ZIP Data Format specified by [ZIP] with the following limitations:
 - Extra fields and comments shall not be written and are ignored on read.
 
 - The external file attributes, if given, must be MS-DOS compatible (i.e. the
-  high byte of the version made by must be 0).
+  high byte of VERSION_CREATE must be 0).
 
-- The ZIP archive must not span multiple disks (i.e. the number of the disk
-  where the end of central directory record is located must be 0).
+- The ZIP archive must not span multiple disks (i.e. MAX_PART must be 0).
 
 
 3.2 Syntax
@@ -155,24 +154,36 @@ ZIP Data Format specified by [ZIP] with the following limitations:
 
 ZIP_EXTRACT_VERSION format:
 
-   2 BYTES  EXTRACT_VERSION  : UINT-16LE = 20  ; require version 2.0 or higher
-
-ZIP_FLAGS format:
-
-   2 BYTES  FLAGS  : UINT-16LE
+   2 BYTES  EXTRACT_VERSION  : UINT-16LE = 20  ; require version 2.0
 
 ZIP_COMPRESSION_METHOD format:
 
    2 BYTES  COMPRESSION_METHOD  : UINT-16LE  ; 0 = uncompressed, 8 = deflate
+
+ZIP_FLAGS format:
+
+   2 BYTES  FLAGS                             : UINT-16LE
+            MASK 0x0001 ENCRYPTED_FLAG        : = 0
+            MASK 0x0006 DEFLATE_OPTIONS       : = 0  ; ignore on read
+            MASK 0x0008 DATA_DESCRIPTOR_FLAG  : = 0
+            MASK 0x07F0 RESERVED_LO           : = 0
+            MASK 0x0800 EFS_FLAG              : = fUTF8
+            MASK 0xF000 RESERVED_HI           : = 0
 
 ZIP_DATE_TIME format:
 
    2 BYTES  TIME  : UINT-16LE  ; MS-DOS encoded time
    2 BYTES  DATE  : UINT-16LE  ; MS-DOS encoded date
 
+ZIP_ATTR_INTERNAL format:
+
+   2 BYTES  ATTR_INTERNAL          : UINT-16LE
+            MASK 0x0001 TEXT_FLAG  ; indicates text stream (heuristic)
+            MASK 0xFFFE RESERVED   : = 0  ; may be ignored on read
+
 ZIP_PATH format:
 
-   ? BYTES  PATH  ; CP-437 or UTF-8 encoded relative path
+   ? BYTES  PATH  ; CP-437 or UTF-8 encoded relative path (depending on fUTF8)
 
 ZIP_STREAM_HEADER format:
 
@@ -192,7 +203,7 @@ ZIP_STREAM_HEADER format:
 ZIP_STREAM format:
 
    ? BYTES  ZIP_STREAM_HEADER
-   ? BYTES  ZIP_STREAM_DATA    ; unspecified data (uncompressed if method == 0
+   ? BYTES  STREAM_DATA        ; unspecified data (uncompressed if method == 0
                                ; or deflate format if method == 8)
 
 ZIP_DATA format:
@@ -204,7 +215,7 @@ ZIP_DATA format:
 ZIP_DIR_HEADER format:
 
      4 BYTES  SIGNATURE               : UINT-32LE = 0x02014B50
-     2 BYTES  VERSION_CREATE          : UINT-16LE = 20
+     2 BYTES  VERSION_CREATE          : UINT-16LE = 20  ; must be < 256 on read
      2 BYTES  ZIP_EXTRACT_VERSION
      2 BYTES  ZIP_FLAGS
      2 BYTES  ZIP_COMPRESSION_METHOD
@@ -215,9 +226,10 @@ ZIP_DIR_HEADER format:
      2 BYTES  PATH_LEN                : UINT-16LE = pLen
      2 BYTES  EXTRA_LEN               : UINT-16LE = eLen  ; shall be 0 on write
      2 BYTES  COMMENT_LEN             : UINT-16LE = cLen  ; shall be 0 on write
-     2 BYTES  START_PART              : UINT-16LE = 0
-     2 BYTES  ATTR_INTERNAL           : UINT-16LE = 0
-     4 BYTES  ATTR_EXTERNAL           : UINT-32LE = 0
+     2 BYTES  START_PART              : UINT-16LE = 0     ; multiple disks not
+                                                          ; supported
+     2 BYTES  ZIP_ATTR_INTERNAL
+     4 BYTES  ATTR_EXTERNAL           : UINT-32LE  ; MS-DOS attributes
      4 BYTES  STREAM_OFFSET           ; position of corresponding ZIP_STREAM
   pLen BYTES  ZIP_PATH
   eLen BYTES  EXTRA_DATA              ; unspecified data (ignore on read)
@@ -232,13 +244,13 @@ ZIP_DIR format:
 ZIP_END_RECORD format:
 
      4 BYTES  SIGNATURE       : UINT-32LE = 0x06054B50
-     2 BYTES  MAX_PART        : UINT-16LE = 0
-     2 BYTES  DIR_START_PART  : UINT-16LE = 0
-     2 BYTES  PART_DIR_COUNT  : UINT-16LE = n
+     2 BYTES  MAX_PART        : UINT-16LE = 0  ; multiple disks not supported
+     2 BYTES  DIR_START_PART  : UINT-16LE = 0  ; multiple disks not supported
+     2 BYTES  PART_DIR_COUNT  : UINT-16LE = n  ; multiple disks not supported
      2 BYTES  DIR_COUNT       : UINT-16LE = n
      4 BYTES  DIR_SIZE        : UINT-32LE = GetSize(ZIP_DIR)
      4 BYTES  DIR_OFFSET      : UINT-32LE = GetSize(ZIP_DATA)
-     2 BYTES  COMMENT_LEN     : UINT-16LE = cLen
+     2 BYTES  COMMENT_LEN     : UINT-16LE = cLen  ; shall be 0 on write
   cLen BYTES  COMMENT         ; unspecified data (ignore on read)
 
 ZIP format:
@@ -251,7 +263,59 @@ ZIP format:
 3.3 Semantics
 -------------------------------------------------------------------------------
 
+A minimal ZIP format is a sequence of n ZIP_STREAM structures, followed by n
+ZIP_DIR_HEADER structures and a final ZIP_END_RECORD structure.
+
+A ZIP_STREAM consists of a ZIP_STREAM_HEADER, immediately followed by the
+possibly compressed STREAM_DATA. The ZIP_DIR_HEADER structures contain the same
+information like ZIP_STREAM_HEADER plus additional attributes.
+
+The header attributes contain internal information, which are required to parse
+the ZIP format properly, as well as information regarding the external stream
+(e.g. the relative path or external attributes).
+
+The EXTRACT_VERSION is expected to be 20 (i.e. version 2.0). If the low byte of
+EXTRACT_VERSION is lower, the ZIP format may still be parsed but some features
+of version 2.0 may be omitted. If it is higher, the ZIP format may still be
+parsed if only the specified elements are used (although other elements would
+be allowed by [ZIP]).
+
+COMPRESSION_METHOD specifies the format of STREAM_DATA which is either 0
+(uncompressed) or 8 (deflate compressed, see /doc/rf-deflate.txt). If deflate
+compression is used, DEFLATE_OPTIONS may specify the compression options for
+deflate compression. However, this value should be set to 0 on write and be
+ignored on read.
+
+EFS_FLAG specifies if ZIP_PATH is encoded using the MS-DOS codepage CP-437 (if
+the flag is not set) or UTF-8 encoding (if the flag is set).
+
+[to do: CRC-32]
+
 
 
 4. SECURITY CONSIDERATIONS
 ===============================================================================
+
+As the ZIP format uses two chains of references to the streams (a sequence of
+consecutive ZIP_STREAM structures starting from the beginning and a sequence
+of ZIP_DIR_HEADER structures which might be looked up from the end using the
+ZIP_END_RECORD), care must be taken that both chains refer to the same items.
+
+For example, ZIP_PATH might be different in the ZIP_STREAM_HEADER of ZIP_STREAM
+from the ZIP_DIR_HEADER. STREAM_OFFSET in the ZIP_DIR_HEADER might refer to a
+different part of the data than expected if the ZIP_STREAM structures would be
+parsed from the beginning. Note that it is not trivial to lookup ZIP_END_RECORD
+from the end of the ZIP format as an entirely valid ZIP_END_RECORD might be
+part of the COMMENT of a ZIP_END_RECORD beyond.
+
+This could pose severe security risks, for example if a malware scanner or
+content filter analyzes a different chain than the program which actually
+extracts the streams.
+
+Thus, it is strongly recommended always to parse both chains (one from the
+beginning of the ZIP format and one form the end) and to consider the format
+invalid if the contents of equal fields in both chains differs (EXTRA_DATA may
+or may not be required equal).
+
+In addition, security considerations of the compression methods should be
+observed (for example, see /doc/rf-deflate.txt).
