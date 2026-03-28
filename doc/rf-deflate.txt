@@ -43,9 +43,9 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-03-27 : 01.00!01 : Ingo
+2026-03-28 : 01.00!01 : Ingo
 
-  Initial version.
+  Draft.
 
 
 Contents
@@ -63,7 +63,7 @@ Contents
    3.2  Base / offset
    3.3  Symbol
    3.4  Bit sequence / bit length
-   3.5  Prefix code
+   3.5  Prefix code / code length
 
 4. DEFLATE PHASES
    4.1  Identifying identical sequences (LZ77 analysis)
@@ -186,14 +186,14 @@ A 'SYMBOL' is a number which is used for intermediate representation of
 - single bytes of the input data,
 - a range of length respectively distance VALUES which use the same BASE,
 - a block end marker or
-- a single bit length respectively a sequence of identical bit lengths.
+- a single code length respectively a sequence of identical code lengths.
 
 Symbols are represented by a number in decimal representation which is prefixed
 by one, two or three commercial at signs ('@'):
 
 - @<number> represents a literal, block end marker or length (LIT) symbol
 - @@<number> represents a distance (DIST) symbol
-- @@@<number> represents a prefix code bit length (CLEN) symbol
+- @@@<number> represents a code length (CLEN) symbol
 
 When a symbol used in a numeric expression, the number of the symbol is casted
 to a VALUE implicitly (e.g. @@12 - 3 = 9).
@@ -213,15 +213,17 @@ chapter 4.4). On decompression, the bit length must be known in advance except
 for PREFIX CODES where the bit length can be determined implicitly.
 
 
-3.5 Prefix code
+3.5 Prefix code / code length
 -------------------------------------------------------------------------------
 
 A 'PREFIX CODE' is a BIT SEQUENCE which distinctly represents a SYMBOL where
-the BIT LENGTH is variable but can be determined implicitly. Although it is
-intented that the PREFIX CODES are Huffman codes (i.e. optimal regarding the
-BIT LENGTH), the term Huffman code is avoided in this documemt as the deflate
-data format relies on the prefix code property rather than on the Huffman code
-property.
+the BIT LENGTH is variable but can be determined implicitly. The BIT LENGTH of
+a PREFIX CODE is called a CODE LENGTH.
+
+Although it is intented that the PREFIX CODES are Huffman codes (i.e. optimal
+regarding the CODE LENGTHS), the term Huffman code is avoided in this documemt
+as the deflate data format relies on the prefix code property rather than on
+the Huffman code property.
 
 
 
@@ -438,7 +440,7 @@ fixed mapping tables are used.
 The following table specifies the fixed mapping for the literal and length
 symbols:
 
-  literal / length symbol  bit length   bit sequence (prefix code)
+  literal / length symbol  code length  bit sequence (prefix code)
   -----------------------  -----------  --------------------------
                  @0..@143            8  00110000..10111111
                @144..@255            9  110010000..111111111
@@ -447,64 +449,65 @@ symbols:
 
 The following table specifies the fixed mapping for the distance symbols:
 
-  distance symbol  bit length  bit sequence (prefix code)
-  ---------------  ----------  --------------------------
-        @@0..@@29           5  00000..11101
+  distance symbol  code length  bit sequence (prefix code)
+  ---------------  -----------  --------------------------
+        @@0..@@29            5  00000..11101
 
-For dynamic mapping tables, a bit length in the range 0..15 must be chosen for
-each symbol. A bit length of 0 means that a symbol cannot be represented by a
-bit sequene. Thus, symbols which are actually used must not have a bit length
-of 0. How the the optimal lengths of the symbols is determined is not subject
-to the deflate data format (in worst case, all bit lengths are set to 15 bits).
+For dynamic mapping tables, a code length in the range 0..15 must be chosen for
+each symbol. A code length of 0 means that a symbol cannot be represented by a
+prefix code. Thus, symbols which are actually used must not have a code length
+of 0. How the the optimal code lengths of the symbols are determined is not
+subject to the deflate data format (in worst case, all bit lengths are set to
+15 bits).
 
-Given the individual bit lengths, the bit sequences (i.e. prefix codes) for the
-literal / length symbols as well as those for the distance symbols must be
+Given the individual code lengths, the bit sequences (i.e. prefix codes) for
+the literal / length symbols as well as those for the distance symbols must be
 determined by the following algorithm (let maxSymbol the maximum symbol value
-and tBitLen[maxSymbol + 1] an array of the bit lengths for each symbol while
+and tCodeLen[maxSymbol + 1] an array of the code lengths for each symbol while
 tPrefixCode[maxSymbol + 1] receives the resulting bit sequences of the prefix
 code as unsigned integers):
 
-  /* count the number of occurrences for each bit length: */
+  /* count the number of occurrences for each code length: */
 
-  for (bitLen = 0; bitLen <= 15; bitLen = bitLen + 1)
+  for (codeLen = 0; codeLen <= 15; codeLen = codeLen + 1)
   {
-      tBitLenCount[bitLen] = 0; 
+      tCodeLenCount[codeLen] = 0; 
   }
 
   for (symbol = 0; symbol <= maxSymbol; symbol = symbol + 1)
   {
-      tBitLenCount[tBitLen[symbol]] = tBitLenCount[tBitLen[symbol]] + 1;
+      tCodeLenCount[tCodeLen[symbol]] = tCodeLenCount[tCodeLen[symbol]] + 1;
   }
 
-  /* determine the starting bit sequence for each bit length: */
+  /* determine the starting bit sequence for each code length: */
 
-  tBitLenCount[0] = 0;
+  tCodeLenCount[0] = 0;
   tBitSequence[0] = 0;
 
-  for (bitLen = 1; bitLen <= 15; bitLen = bitLen + 1)
+  for (codeLen = 1; codeLen <= 15; codeLen = codeLen + 1)
   {
-      tBitSequence[bitLen] =
-          (tBitSequence[bitLen - 1] + tBitLenCount[bitLen - 1]) << 1;
+      tBitSequence[codeLen] =
+          (tBitSequence[codeLen - 1] + tCodeLenCount[codeLen - 1]) << 1;
   }
 
   /* build the mapping table: */
 
   for (symbol = 0; symbol <= maxSymbol; symbol = symbol + 1)
   {
-      bitLen = tBitLen[symbol];
+      codeLen = tCodeLen[symbol];
 
-      tPrefixCode[symbol] = tBitSequence[bitLen];
+      tPrefixCode[symbol] = tBitSequence[codeLen];
 
-      if (bitLen > 0)
+      if (codeLen > 0)
       {
-          tBitSequence[bitLen] = tBitSequence[bitLen] + 1;
+          tBitSequence[codeLen] = tBitSequence[codeLen] + 1;
       }
   }
 
 Note that, on compression, overflows must be avoided (e.g. if more than two
-symbols are given but two symbols have a bit length of one bit, or if 14
-symbols have a consecutive bit length from 1..14, only two bit sequences are
-left for a bit length of 15). On decompression, such cases shall be considered
+symbols are given but two symbols have a code length of one bit, or if 14
+symbols have a consecutive code length from 1..14, only two bit sequences are
+left for a code length of 15). On decompression, such cases shall be considered
 an invalid format.
 
 On compression, maxSymbol shall be the maximum value of the defined symbols
@@ -518,15 +521,15 @@ code of an undefined symbol occured, the format shall be considered invalid).
 Example:
 
   The following mapping table shows for the symbols @0, @3, @17 and @21 with
-  given bit lengths 3, 2, 1 and 2 bits the resulting prefix codes as unsigned
-  integers (in binary notation) as well as bit sequences:
+  given code lengths of 3, 2, 1 and 2 bits the resulting prefix codes as
+  unsigned integers (in binary notation) as well as bit sequences:
 
-  symbol  tBitLen[symbol]  tPrefixCode[symbol]  bit sequence (prefix code)
-  ------  ---------------  -------------------  --------------------------
-      @0                3           0b00000110  110
-      @3                2           0b00000010  10
-     @17                1           0b00000000  0
-     @21                2           0b00000111  111
+  symbol  tCodeLen[symbol]  tPrefixCode[symbol]  bit sequence (prefix code)
+  ------  ----- ----------  -------------------  --------------------------
+      @0                 3           0b00000110  110
+      @3                 2           0b00000010  10
+     @17                 1           0b00000000  0
+     @21                 2           0b00000111  111
 
 Offsets, if given, are encode by a fixed number of extra bits. The bit sequence
 is the binary representation of the offset value in reversed order (i.e. least
@@ -563,72 +566,72 @@ If dynamic mapping tables are used, they are stored in the following manner so
 that they can be reconstructed on decompression.
 
 Both mapping tables, the literal / length symbol mapping table and the distance
-symbol table, are defined by the individual bit lengths of the prefix codes of
+symbol table, are defined by the individual code lengths of the prefix codes of
 the symbols in ascending order of the symbol values.
 
-As an intermediate step, each mapping table is represented by sequences of bit
+As an intermediate step, each mapping table is represented by sequences of code
 lengths in the range 0..15 and the length of each sequence (i.e. the number of
-bit lengths) is determined as follows:
+code lengths) is determined as follows:
 
-- For the literal / length symbol mapping table, trailing bit lengths of 0 may
-  be truncated as long as at least 257 bit lengths remain in the sequence. On
-  decompression, bit lengths for the undefined symbols @286 and @287 may occur
+- For the literal / length symbol mapping table, trailing code lengths of 0 may
+  be truncated as long as at least 257 code lengths remain in the sequence. On
+  decompression, code lengths for the undefined symbols @286 and @287 may occur
   which would participate in the prefix code calculation but must never be used
-  (see chapter 4.3). Thus, a sequence of bit lengths with 257..286 elements on
-  compression and 257..288 elements decompression is used. The number of bit
+  (see chapter 4.3). Thus, a sequence of code lengths with 257..286 elements on
+  compression and 257..288 elements decompression is used. The number of code
   lengths in the sequence is denoted by #LIT.
 
-- For the distance symbol mapping table, trailing bit lengths of 0 may be
-  truncated as long as at least one bit length remains in the sequence. On
-  decompression, bit lengths for the undefined symbols @@30 and @@31 may occur
+- For the distance symbol mapping table, trailing code lengths of 0 may be
+  truncated as long as at least one code length remains in the sequence. On
+  decompression, code lengths for the undefined symbols @@30 and @@31 may occur
   which would participate in the prefix code calculation but must never be used
-  (see chapter 4.3). Thus, a sequence of bit lengths with 1..30 elements on
-  compression and 1..32 on elements decompression is used. The number of bit
+  (see chapter 4.3). Thus, a sequence of code lengths with 1..30 elements on
+  compression and 1..32 on elements decompression is used. The number of code
   lengths in the sequence is denoted by #DIST.
 
-Now, both sequences are concatenated, resulting in a single sequence of bit
+Now, both sequences are concatenated, resulting in a single sequence of code
 lengths (i.e. 258..316 elements on compression and 258..320 elements on
-decompression), which is translated to a sequence of prefix code bit length
-(CLEN) symbols as follows:
+decompression), which is translated to a sequence of code length (CLEN) symbols
+as follows:
 
-- A single bit length is represented by a CLEN symbol of the same value (e.g.
-  a bit length of 13 is represtented by the symbol @@@13).
+- A single code length is represented by a CLEN symbol of the same value (e.g.
+  a code length of 13 is represtented by the symbol @@@13).
 
-- 3..6 repeats of a bit length may be represented by the symbol @@@16 and the
-  number of bit lengths is represented by an offset using the base 3. The
-  symbol @@@16 must not be the first symbol of the sequence as there is no
-  bit length yet to be repeated. However, the bit length to be repeated may
-  result from any CLEN symbol (e.g. a sequence of 14 bit lengths of the value
-  6 may be represented by @@@6, @@@16, 3, @@@16, 3, @@@16, 1).
+- 3..6 repeats of a code length may be represented by the symbol @@@16 and the
+  number of code lengths is represented by an offset using the base 3. The
+  symbol @@@16 must not be the first symbol of the sequence as there is no code
+  length yet to be repeated. However, the code length to be repeated may result
+  from any CLEN symbol (e.g. a sequence of 14 code lengths of the value 6 may
+  be represented by @@@6, @@@16, 3, @@@16, 3, @@@16, 1).
 
-- 3..10 bit lengths of the value 0 may be represented by the symbol @@@17 and
-  the number of bit lengths is represented by an offset using the base 3 (e.g.
-  8 bit lengths of the value 0 may be represented by @@@17, 5).
+- 3..10 code lengths of the value 0 may be represented by the symbol @@@17 and
+  the number of code lengths is represented by an offset using the base 3 (e.g.
+  8 code lengths of the value 0 may be represented by @@@17, 5).
 
-- 11..138 bit lengths of the value 0 may be represented by the symbol @@@18 and
-  the number of bit lengths is represented by an offset using the base 11 (e.g.
-  28 bit lengths of the value 0 may be represented by @@@18, 17).
+- 11..138 code lengths of the value 0 may be represented by the symbol @@@18
+  and the number of code lengths is represented by an offset using the base 11
+  (e.g. 28 code lengths of the value 0 may be represented by @@@18, 17).
 
 The symbols and offsets are encoded as bit sequences (i.e. prefix codes and
 extra bits) just like the input data (see chapter 4.3) except that a CLEN
 mapping table is used, rather than one literal / length and one distance
-mapping table, to represent the CLEN symbols and that the bit lengths of the
+mapping table, to represent the CLEN symbols and that the code lengths of the
 prefix codes in that table must be in the range 0..7 rather than 0..15.
 
-The bit lengths of the CLEN mapping table are represented as the sequence of
+The code lengths of the CLEN mapping table are represented as the sequence of
 their values in the following order of the CLEN symbols:
 
   @@@16, @@@17, @@@18, @@@0, @@@8, @@@7, @@@9, @@@6, @@@10, @@@5, @@@11, @@@4,
   @@@12, @@@3, @@@13, @@@2, @@@14, @@@1, @@@15
 
-Trailing bit lengths of 0 may be truncated as long as at least 4 bit lengths
-remain in the sequence (i.e. the minimal sequence to represent the bit lengths
+Trailing code lengths of 0 may be truncated as long as at least 4 code lengths
+remain in the sequence (i.e. the minimal sequence to represent the code lengths
 of a CLEN mapping table would be @@@16, @@@17, @@@18, @@@0 which can, however,
-never occur as those symbols alone can only represent bit lengths of 0). The
-number of bit lengths of the CLEN mapping table is denoted by #CLEN.
+never occur as those symbols alone can only represent code lengths of 0). The
+number of code lengths of the CLEN mapping table is denoted by #CLEN.
 
-#LIT, #DEST, #CLEN, the bit lengths of the CLEN mapping table and the bit
-sequences of the encoded bit lengths result in the following representation:
+#LIT, #DEST, #CLEN, the code lengths of the CLEN mapping table and the bit
+sequences of the encoded code lengths result in the following representation:
 
 - #LIT - 257, encoded by 5 bits (i.e. #LIT is in the range 257..288) in
   reversed order (i.e. least significant bits come first).
@@ -639,26 +642,27 @@ sequences of the encoded bit lengths result in the following representation:
 - #CLEN - 4, encoded by 4 bits (i.e. #CLEN is in the range 4..19) in reversed
   order (i.e. least significant bits come first).
 
-- #CLEN bit lengths of the CLEN mapping table in the given order, each encoded
-  by 3 bits (i.e. each bit length is in the range 0..7), in reversed order
+- #CLEN code lengths of the CLEN mapping table in the given order, each encoded
+  by 3 bits (i.e. each code length is in the range 0..7), in reversed order
   (i.e. least significant bits come first).
 
-- The bit sequences of the encoded bit lengths, using the CLEN mapping table,
-  to encode #LIT + #DIST bit lengths. Note that if the last symbol is @@@16,
-  @@@17 or @@@18, more bit lengths may result than actually required. In this
-  case, the unnecessary bit lengths shall be ignored (i.e. the number of bit
+- The bit sequences of the encoded code lengths, using the CLEN mapping table,
+  to encode #LIT + #DIST code lengths. Note that if the last symbol is @@@16,
+  @@@17 or @@@18, more code lengths may result than actually required. In this
+  case, the unnecessary code lengths shall be ignored (i.e. the number of code
   lengths produced by this symbol is clipped). However, on compression, this
-  case shall be avoided (as a consequence, 2 or 3 identical bit lengths at the
+  case shall be avoided (as a consequence, 2 or 3 identical code lengths at the
   end of the sequence cannot be compressed using the symbol @@@16).
 
 Example:
 
-  The input data only consists of ASCII encoded digits (i.e. 0x30..0x39) and LF
-  (0x0A) but no identical sequences are found. The literal symbols @48..@53 are
-  encoded using a bit length of 3, @54 and @55 using a bit length of 4 and @56,
-  @57, @10 and the mandatory block end marker @256 using a bit length of 5.
+  The input data only consists of ASCII encoded digits (i.e. 0x30..0x39) and
+  the line feed control character (0x0A) but no identical sequences are found.
+  The literal symbols @48..@53 are encoded using a code length of 3, @54 and
+  @55 using a code length of 4 and @56, @57, @10 and the mandatory block end
+  marker @256 using a code length of 5.
 
-  The resulting bit lengths are (#LIT = 257, #DIST = 1):
+  The resulting code lengths are (#LIT = 257, #DIST = 1):
 
   - 0 for @0..@9 (10 times)
   - 5 for @10
@@ -676,19 +680,19 @@ Example:
     @@@17, 7, @@@5, @@@18, 26, @@@3, @@@16, 2, @@@4, @@@4, @@@5, @@@5, @@@18,
     127, @@@18, 49, @@@5, @@@0
 
-  The symbols @@@4, @@@5 and @@@18 might be encoded by a bit length of 2 while
-  the remaining symbols might be encoded by a bit length of 4. The resulting
+  The symbols @@@4, @@@5 and @@@18 might be encoded by a code length of 2 while
+  the remaining symbols might be encoded by a code length of 4. The resulting
   prefix codes are:
 
-    CLEN symbol  bit length  prefix code
-    -----------  ----------  -----------
-    @@@0                  4  1100
-    @@@3                  4  1101
-    @@@4                  2  00
-    @@@5                  2  01
-    @@@16                 4  1110
-    @@@17                 4  1111
-    @@@18                 2  10
+    CLEN symbol  code length  prefix code
+    -----------  -----------  -----------
+    @@@0                   4  1100
+    @@@3                   4  1101
+    @@@4                   2  00
+    @@@5                   2  01
+    @@@16                  4  1110
+    @@@17                  4  1111
+    @@@18                  2  10
 
   The resulting entire output as bit sequences is as follows (#CLEN = 14):
 
@@ -716,8 +720,8 @@ data cannot be compressed (i.e. the compressed size would be greater or equal
 than the uncompressed size). Note that the LZ77 analysis (see chapter 4.1) is
 independent from the blocks chosen.
 
-Each block has a header of 3 bits which immediately follows the last bit of a
-previous block, if given:
+Each block has a header of a bit sequence of 3 bits which immediately follows
+the last bit of a previous block, if given:
 
 - The least significand bit is a flag which indicates the last block if set to
   1. Thus, the deflate data format is self delimiting.
@@ -804,21 +808,22 @@ discarded. However, the input data which is stored as uncompressed data may
 still be part of the sliding window for LZ77 analysis of the next block(s).
 
 
+
 5. SECURITY CONSIDERATIONS
 ===============================================================================
 
 As some few aspects of the [RFC-1951] are ambiguous and may thus be implemented
-differently, in particular regarding dynamic mapping table representation and
-the algorithm to determine the prefix codes from the symbol bit lengths, the
+differently (particularly regarding dynamic mapping table representation and
+the algorithm to determine the prefix codes from the symbol code lengths), the
 same compressed data might result in different decompressed data.
 
 For example, the symbols @286 and @287 are undefined and are thus not expected
 to occur. However, if they occur, they might or might not participate in the
 algorithm to determine the prefix codes resulting in different prefix codes for
-symbols with a greater bit length.
+symbols with a greater code length.
 
 While the description in this document has the goal to be able to decompress
-as much encodings as possible, the more strict rules for compression should be
+as much encodings as possible, the stricter rules for compression should be
 observed (and input data should be considered invalid if those rules are not
 met) if it is vital in terms of security that the decompressed data does not
 contain unexpected results.

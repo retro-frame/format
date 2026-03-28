@@ -9,10 +9,10 @@
 
 FORMAT - Retro-Frame Data Format Specifications
 
-ZIP Data Format Description
+Minimal ZIP Data Format Description
 
 Repository:  <http://source.retro-frame.net/format>
-File:        /doc/rf-zip.txt//
+File:        /doc/rf-minzip.txt//
 Version:     01.00!01
 Compliance:  Retro-Frame 1.0
 License:     MIT
@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-03-27 : 01.00!01 : Ingo
+2026-03-28 : 01.00!01 : Ingo
 
   Draft.
 
@@ -58,7 +58,7 @@ Contents
 
 2. OVERVIEW
 
-3. MINIMAL ZIP FORMAT
+3. BINARY DATA FORMAT
    3.1  Characteristics
    3.2  Syntax
    3.3  Semantics
@@ -89,8 +89,8 @@ be used by other specifications.
 1.2 Scope
 -------------------------------------------------------------------------------
 
-This document provides an incomplete description of the ZIP Data Format. For
-the full specification, see [ZIP].
+This document provides a description of a minimal subset of the ZIP Data Format
+according to [ZIP] standardized by [ISO 21320].
 
 
 1.3 References
@@ -99,54 +99,94 @@ the full specification, see [ZIP].
 [COMMON DOCUMENTATION]
 Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
 
+[ISO 21320]
+International Standard ISO/IEC 21320-1:2015 - Information technology -
+Document Container File - Part 1: Core, first edition, 2015-10-15, see
+<https://www.iso.org/standard/60101.html>
+
 [RETRO-FRAME]
 Retro-Frame homepage, see <http://source.retro-frame.net/>.
 
+[RFC-1951]
+RFC: 1951 - DEFLATE Compressed Data Format Specification version 1.3, see
+<https://datatracker.ietf.org/doc/html/rfc1951>.
+
 [ZIP]
-APPNOTE.TXT - .ZIP File Format Specification, PKWARE Inc., see
-\<[http://www.pkware.com/appnote](http://www.pkware.com/appnote)\>.
+APPNOTE.TXT - .ZIP File Format Specification, version 6.3.3, PKWARE Inc., see
+<http://www.pkware.com/documents/APPNOTE/APPNOTE-6.3.3.TXT>.
 
 
 
 2. OVERVIEW
 ===============================================================================
 
-This document contains descriptions of subsets of the ZIP Data Format according
-to [ZIP]. Thus, compliance to a data format described in this document should
-lead to [ZIP] compliant data formats. However, some data formats compliant to
-[ZIP] may be not covered.
+The ZIP Data Format is a widly used format to pack and optionally compress
+multiple files into a single archive which was developed by Phil Katz. While
+the original environment for this data format was MS-DOS, several enhancements
+have been added to support other environments or to make the data format more
+system-independent.
 
-The individual limitations of the subsets are explained in the respective
-"Characteristics" chapters.
+In addition, encryption facilities have been introduced, providing a wide range
+of encryption methods. While the original ZIP encryption used a proprietary
+algorithm which is considered broken, other encryption schemes (particularly
+those based on AES) are still considered strong.
+
+This document contains the description of the minimal subset of the ZIP Data
+Format according to [ZIP] which is even a subset of the standard [ISO 21320].
+Thus, a data format compliant to this document should always lead to a [ZIP]
+and [ISO 21320] compliant data format. However, several data formats compliant
+to [ZIP] or [ISO 21320] may not be compliant to this document.
+
+In particular, the following limitations apply on the Minimal ZIP Data Format
+subset:
+
+- The ZIP archive must not span multiple volumes or be split into user-defined
+  segment sizes. This limitation also applies to [ISO 21320].
+
+- At least one stream shall be stored (i.e. the ZIP Data Format must not be
+  empty).
+
+- Only the following structures are specified:
+
+  - "local file headers" (ZIP_STREAM_HEADER)
+  - "file data" (ZIP_STREAM_DATA)
+  - "central directory headers" (ZIP_DIR_HEADER)
+  - "end of central directory record" (ZIP_END_RECORD)
+
+  As a consequence, neither encryption (this limitation also applies to
+  [ISO 21320]) nor "data descriptors" nor 64 bit variants are supported.
+
+- The "compression method" is limited to 0 ("stored" / "no compression") and 8
+  ("deflated"). This limitation also applies to [ISO 21320]. For "compression
+  method" 8 see [RFC-1951] and /doc/rf-deflate.txt. Note that [ZIP] specifies a
+  slightly different storage of #LIT and #CLEN compared to /doc/rf-deflate.txt,
+  which is compliant to [RFC-1951].
+
+- The high byte of "version made by" (VERSION_CREATE) is always set to 0. Thus,
+  "external file attributes", if given, must be MS-DOS compatible.
+
+- All bits other than 1, 2 and 11 in the "general purpose bit flag" (ZIP_FLAGS)
+  must be 0. Except for bit 3, this limitation also applies to [ISO 21320]. As
+  "data descriptors" are not supported (see above), bit 3 is also always 0. In
+  contrast to [ISO 21320], bit 11 may be set at discretion, indicating UTF-8
+  encoded paths.
+
+- "Extra fields" and comments shall not be written and are ignored on read.
 
 
-3. MINIMAL ZIP FORMAT
+
+3. BINARY DATA FORMAT
 ===============================================================================
 
 
 3.1 Characteristics
 -------------------------------------------------------------------------------
 
-Minimal ZIP is a self-delimiting binary data format which is a subset of the
-ZIP Data Format specified by [ZIP] with the following limitations:
+Minimal ZIP is a self-delimiting binary data format.
 
-- Only the following structures are specified:
-
-  - local file headers (ZIP_STREAM_HEADER)
-  - file data (ZIP_STREAM_DATA)
-  - central directory headers (ZIP_DIR_HEADER)
-  - end of central directory record (ZIP_END_RECORD)
-
-  As a consequence, neither encryption nor data descriptors are provided.
-
-- The compression methods are limited to 0 (no compression) and 8 (deflate).
-
-- Extra fields and comments shall not be written and are ignored on read.
-
-- The external file attributes, if given, must be MS-DOS compatible (i.e. the
-  high byte of VERSION_CREATE must be 0).
-
-- The ZIP archive must not span multiple disks (i.e. MAX_PART must be 0).
+As empty data formats are not allowed, the first four bytes of a minimal ZIP
+Data Format are always 0x50, 0x4B, 0x03 and 0x04. Thus, this byte sequence may
+be used as a magic prefix.
 
 
 3.2 Syntax
@@ -154,7 +194,7 @@ ZIP Data Format specified by [ZIP] with the following limitations:
 
 ZIP_EXTRACT_VERSION format:
 
-   2 BYTES  EXTRACT_VERSION  : UINT-16LE = 20  ; require version 2.0
+   2 BYTES  EXTRACT_VERSION  : UINT-16LE = 20  ; must be >= 20 on read
 
 ZIP_COMPRESSION_METHOD format:
 
@@ -317,5 +357,24 @@ beginning of the ZIP format and one form the end) and to consider the format
 invalid if the contents of equal fields in both chains differs (EXTRA_DATA may
 or may not be required equal).
 
-In addition, security considerations of the compression methods should be
-observed (for example, see /doc/rf-deflate.txt).
+Care must be taken if ZIP_PATH is used to build a local path (usually this
+attribute is appended to a system-specific base path). In particular, the
+following aspects should be considered:
+
+- Although prohibited by [ZIP], ZIP_PATH may represent an absolute path, a URL
+  or any other sequence which might be interpreted in a special way be the
+  environment (this is especially crucial if no base path is prepended).
+
+- By using references to the parent directory (e.g. "../"), the resulting path
+  may be outside the base path (directory traversal).
+
+- Multiple streams may refer to the same path. As a consequence, the order of
+  extraction may be important (if existing files are overwritten, only the last
+  stream which is extracted will remain).
+
+- The character encoding may not be recognized properly (CP-437 or UTF-8) or
+  normalization may take place or the resulting characters may have unintended
+  effect when used in the local environment.
+
+In addition, security considerations of the deflate compression method should
+be observed (see /doc/rf-deflate.txt).

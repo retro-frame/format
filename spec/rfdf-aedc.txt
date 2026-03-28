@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-21 : 01.00!01 : Ingo
+2026-03-28 : 01.00!01 : Ingo
 
   Draft.
 
@@ -436,7 +436,7 @@ zero.
 -------------------------------------------------------------------------------
 
 As the AEDC format is intended to collect data in insecure environments without
-using secret keys (except temporary keys for each session which is exposed to
+using secret keys (except temporary keys for each session which are exposed to
 the environment anyway), no authentication of data is provided at all. Thus,
 any decrypted data should be considered untrusted and potentially dangerous.
 Note that the MAC is used to protect the integrity of a session but does not

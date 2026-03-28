@@ -69,8 +69,9 @@ vendor-specific) data formats are provided:
 * `doc/rf-deflate.txt` provides a description of the **Deflate Compressed Data
   Format**.
 
-* `doc/rf-zip.txt` provides a description of the **ZIP File Format
-  Specification**.
+* `doc/rf-minzip.txt` provides a description of a minimal subset of the
+  **ZIP Data Format Specification** considering the **Document Container File
+  Standard**.
 
 
 ## 3. Data format specifications
@@ -124,6 +125,12 @@ Currently, the following data format specification documents are provided:
 RFC: 1951 - DEFLATE Compressed Data Format Specification version 1.3, see
 \<[https://datatracker.ietf.org/doc/html/rfc1951](https://datatracker.ietf.org/doc/html/rfc1951)\>.
 
+### Document Container File Standard
+
+International Standard ISO/IEC 21320-1:2015 - Information technology - Document
+Container File - Part 1: Core, first edition, 2015-10-15, see
+\<[https://www.iso.org/standard/60101.html](https://www.iso.org/standard/60101.html)\>.
+
 ### Retro-Frame
 
 Retro-Frame homepage, see
@@ -134,7 +141,7 @@ Retro-Frame homepage, see
 Retro-Frame Common Documentation repository, see
 \<[http://source.retro-frame.net/common](http://source.retro-frame.net/common)\>.
 
-### ZIP File Format Specification
+### ZIP Data Format Specification
 
-APPNOTE.TXT - .ZIP File Format Specification, PKWARE Inc., see
-\<[http://www.pkware.com/appnote](http://www.pkware.com/appnote)\>.
+APPNOTE.TXT - .ZIP File Format Specification, version 6.3.3, PKWARE Inc., see
+\<[http://www.pkware.com/documents/APPNOTE/APPNOTE-6.3.3.TXT](http://www.pkware.com/documents/APPNOTE/APPNOTE-6.3.3.TXT)\>.
