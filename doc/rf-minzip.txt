@@ -158,9 +158,8 @@ subset:
 
 - The "compression method" is limited to 0 ("stored" / "no compression") and 8
   ("deflated"). This limitation also applies to [ISO 21320]. For "compression
-  method" 8 see [RFC-1951] and /doc/rf-deflate.txt. Note that [ZIP] specifies a
-  slightly different storage of #LIT and #CLEN compared to /doc/rf-deflate.txt,
-  which is compliant to [RFC-1951].
+  method" 8 see [RFC-1951] and /doc/rf-deflate.txt. Note that [ZIP] specifies
+  a slightly different storage of #LIT and #CLEN compared to [RFC-1951].
 
 - The high byte of "version made by" (VERSION_CREATE) is always set to 0. Thus,
   "external file attributes", if given, must be MS-DOS compatible.
@@ -243,7 +242,7 @@ ZIP_STREAM_HEADER format:
 ZIP_STREAM format:
 
    ? BYTES  ZIP_STREAM_HEADER
-   ? BYTES  STREAM_DATA        ; unspecified data (uncompressed if method == 0
+   ? BYTES  ZIP_STREAM_DATA    ; unspecified data (uncompressed if method == 0
                                ; or deflate format if method == 8)
 
 ZIP_DATA format:
@@ -307,8 +306,8 @@ A minimal ZIP format is a sequence of n ZIP_STREAM structures, followed by n
 ZIP_DIR_HEADER structures and a final ZIP_END_RECORD structure.
 
 A ZIP_STREAM consists of a ZIP_STREAM_HEADER, immediately followed by the
-possibly compressed STREAM_DATA. The ZIP_DIR_HEADER structures contain the same
-information like ZIP_STREAM_HEADER plus additional attributes.
+possibly compressed ZIP_STREAM_DATA. The ZIP_DIR_HEADER structures contain the
+same information like ZIP_STREAM_HEADER plus additional attributes.
 
 The header attributes contain internal information, which are required to parse
 the ZIP format properly, as well as information regarding the external stream
@@ -320,7 +319,7 @@ of version 2.0 may be omitted. If it is higher, the ZIP format may still be
 parsed if only the specified elements are used (although other elements would
 be allowed by [ZIP]).
 
-COMPRESSION_METHOD specifies the format of STREAM_DATA which is either 0
+COMPRESSION_METHOD specifies the format of ZIP_STREAM_DATA which is either 0
 (uncompressed) or 8 (deflate compressed, see /doc/rf-deflate.txt). If deflate
 compression is used, DEFLATE_OPTIONS may specify the compression options for
 deflate compression. However, this value should be set to 0 on write and be
