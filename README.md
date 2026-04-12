@@ -2,7 +2,7 @@
 
 **Endeavor: Retro-Frame**  
 **Repository: \<[http://source.retro-frame.net/format](http://source.retro-frame.net/format)\>**  
-**Version: 1.0!1 (alpha, dev)**  
+**Version: 1.0!1 (dev)**  
 **Compliance: Retro-Frame 1.0**  
 **License: MIT (see `LICENSE`)**  
 
@@ -108,14 +108,14 @@ Currently, the following data format specification documents are provided:
 * `spec/rfdf-rfff.txt` provides the specification of the Retro-Frame Magic
   Prefix (5246 / "RFFF") format.
 
+* `spec/rfdf-rvee2b.txt` provides the specification of the Retro Virtual
+  Execution Environment #2 Binary (EE2B) format.
+
 * `spec/rfdf-sym.txt` provides the specification of the Symbol Table ("SYM")
   format.
 
 * `spec/rfdf-text.txt` provides the specification of the Unspecified Text
   ("TEXT") format.
-
-* `spec/rfdf-vee2b.txt` provides the specification of the Virtual Execution
-  Environment #2 Binary (EE2B) format.
 
 
 ## 4. References

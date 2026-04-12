@@ -9,11 +9,11 @@
 
 FORMAT - Retro-Frame Data Format Specifications
 
-VEE2B - Virtual Execution Environment #2 Binary (EE2B)
+RVEE2B - Retro Virtual Execution Environment #2 Binary (EE2B)
 
 Repository:  <http://source.retro-frame.net/format>
-File:        /spec/rfdf-vee2b.txt//
-Version:     01.00!00
+File:        /spec/rfdf-rvee2b.txt//
+Version:     01.00!01
 Compliance:  Retro-Frame 1.0
 License:     MIT
 
@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-14 : 01.00!00 : Ingo
+2026-02-14 : 01.00!01 : Ingo
 
   Draft.
 
@@ -87,9 +87,9 @@ be used by other specifications.
 1.2 Scope
 -------------------------------------------------------------------------------
 
-This document specifies the Virtual Execution Environment #2 Binary (VEE2B)
-data format of the type EE2B. It should be recognized by any Retro-Frame
-compliant VEE2 virtual machine.
+This document specifies the Retro Virtual Execution Environment #2 Binary
+(RVEE2B) data format of the type EE2B. It should be recognized by any
+Retro-Frame compliant RVEE2 virtual machine.
 
 
 1.3 References
@@ -110,10 +110,10 @@ Retro-Frame homepage, see <http://source.retro-frame.net/>.
 2. OVERVIEW
 ===============================================================================
 
-The Virtual Execution Environment #2 (VEE2) is designed to run simple virtual
-binary code in a limited environment. The Virtual Execution Environment #2
-Binary (VEE2B) data format is intended to represent VEE2 code and data which
-may be loaded into and executed by a VEE2 virtual machine.
+The Retro Virtual Execution Environment #2 (RVEE2) is designed to run simple
+virtual binary code in a limited environment. The Retro Virtual Execution
+Environment #2 Binary (RVEE2B) data format is intended to represent RVEE2 code
+and data which may be loaded into and executed by a RVEE2 runtime.
 
 
 
@@ -124,7 +124,7 @@ may be loaded into and executed by a VEE2 virtual machine.
 3.1 Characteristics
 -------------------------------------------------------------------------------
 
-VEE2B is an optionally self-delimiting binary format.
+RVEE2B is an optionally self-delimiting binary format.
 
 There are no restrictions on the format version.
 
@@ -132,13 +132,13 @@ There are no restrictions on the format version.
 3.2 Syntax of version 00:00
 -------------------------------------------------------------------------------
 
-VEE2B_IDENTIFIER format:
+RVEE2B_IDENTIFIER format:
 
     2 BYTES  FORMAT_TYPE           : UINT-16BE = 0xEE2B
     1 BYTE   FORMAT_VERSION_MAJOR  : UINT-8 = 0x00
     1 BYTE   FORMAT_VERSION_MINOR  : UINT-8 = 0x00
 
-VEE2B_HEADER format:
+RVEE2B_HEADER format:
 
     1 BYTE   HEADER_TAG                     : UINT-8
              MASK 0x0F FORMAT_TYPE          : = 0
@@ -150,7 +150,7 @@ VEE2B_HEADER format:
   [ DATA_SEG_FLAG ]
     4 BYTES  DATA_SEG_LIMIT                 : UINT-32BE = dataSegSize - 1
 
-VEE2B_CHUNK format:
+RVEE2B_CHUNK format:
 
     2          BYTES  CHUNK_TAG                  : UINT-16BE
                       MASK 0x8000 CODE_FLAG
@@ -176,36 +176,36 @@ VEE2B_CHUNK format:
   [ ZERO_FLAG ]
     4          BYTES  ZERO_LIMIT                 ; UINT-32BE = zeroDataSize - 1
 
-VEE2B_END format:
+RVEE2B_END format:
 
     2  BYTES  END_TAG  : UINT-16BE = 0
 
-VEE2B format:
+RVEE2B format:
 
-    4  BYTES  VEE2B_IDENTIFIER
-    ?  BYTES  VEE2B_HEADER
-    ?  BYTES  VEE2B_CHUNK
+    4  BYTES  RVEE2B_IDENTIFIER
+    ?  BYTES  RVEE2B_HEADER
+    ?  BYTES  RVEE2B_CHUNK
               ...
-    ?  BYTES  VEE2B_CHUNK
-  [ 1  BYTE   VEE2B_END ]
+    ?  BYTES  RVEE2B_CHUNK
+  [ 1  BYTE   RVEE2B_END ]
 
 
 3.3 Semantics
 -------------------------------------------------------------------------------
 
-The header of a VEE2B data format starts with a HEADER_TAG which specifies the
+The header of a RVEE2B data format starts with a HEADER_TAG which specifies the
 number formats and the presence of subsequent header values.
 
-If FORMAT_TYPE is zero, the VEE2 virtual machine should expect negative integer
-values to be represented in the two's complement and floating point numbers to
-be represented in the [IEEE 754] format (considering the endianness indicated
-by BIG_ENDIAN_INT_FLAG and BIG_ENDIAN_FLT_FLAG). However, future versions of
-VEE2 may provide different representations. Thus, the loader should fail on
-load if FORMAT_TYPE is not supported. In this case, upward compatibility is
-considered still maintained in terms of the data format but in this case not in
-terms of the virtual machine. In a similar way, the virtual machine may emulate
-the endianness of the binary if it does not match the native endianness of the
-virtual machine or load may fail if not supported.
+If FORMAT_TYPE is zero, the RVEE2 virtual machine should expect negative
+integer values to be represented in the two's complement and floating point
+numbers to be represented in the [IEEE 754] format (considering the endianness
+indicated by BIG_ENDIAN_INT_FLAG and BIG_ENDIAN_FLT_FLAG). However, future
+versions of RVEE2 may provide different representations. Thus, the loader
+should fail on load if FORMAT_TYPE is not supported. In this case, upward
+compatibility is considered still maintained in terms of the data format but in
+this case not in terms of the virtual machine. In a similar way, the virtual
+machine may emulate the endianness of the binary if it does not match the
+native endianness of the virtual machine or load may fail if not supported.
 
 Note that no other compatibility information is provided by the header. Thus,
 in order to ensure compatibility of the virtual machine including APIs at
@@ -230,8 +230,8 @@ boundaries must be ignored. On the other hand, if not all bytes of a segment
 are loaded, the remaining bytes must be set to zero.
 
 If a two-byte value zero is present rather than a CHUNK_TAG, this is considered
-the end mark of the VEE2B stream. In this case, the format is self delimiting.
+the end mark of the RVEE2B stream. In this case, the format is self delimiting.
 However, if the stream contains further bytes (e.g. the end of a stream has not
-been reached), another data format shall be expected. If multiple VEE2B formats
-appear, all should be loaded an run in parallel if supported by the virtual
-machine (otherwise, the behaviour is implementation-dependent).
+been reached), another data format shall be expected. If multiple RVEE2B
+formats appear, all should be loaded an run in parallel if supported by the
+virtual machine (otherwise, the behaviour is implementation-dependent).
