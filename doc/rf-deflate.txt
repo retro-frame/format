@@ -208,7 +208,7 @@ format. The 'BIT LENGTH' is the number of bits of a BIT SEQUENCE.
 
 Note that the bit length is not necessarily a multiple of 8 and that in the
 textual representation the most significant (i.e. high) bits always come first
-while the encoding of bit seqeuences in bytes will reverse the bit order (see
+while the encoding of bit sequences in bytes will reverse the bit order (see
 chapter 4.4). On decompression, the bit length must be known in advance except
 for PREFIX CODES where the bit length can be determined implicitly.
 
