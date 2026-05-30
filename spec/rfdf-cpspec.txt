@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-14 : 01.00!00 : Ingo
+2026-05-30 : 01.00!02 : Ingo
 
   Draft.
 
@@ -208,7 +208,7 @@ There are no restrictions on the format version.
 
 <cpspec-ws>:
 
-  ( ( WS )* | [ WS ]* [ ";" [ ! | WS ]* ] LB )*
+  ( WS | [ ";" [ ! | WS ]* ] LB )*
 
 <cpspec-value>:
 

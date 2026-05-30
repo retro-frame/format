@@ -282,7 +282,6 @@ There are no restrictions on the format version.
 3.3 Semantics
 -------------------------------------------------------------------------------
 
-
 The circumflex accent ('^', caret) is used as an escape character. Note that
 the escape sequences specified here, although similar, differ from the standard
 specification according to [COMMON DOCUMENTATION], /spec/rf-char.txt, chapter

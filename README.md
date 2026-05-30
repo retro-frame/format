@@ -2,7 +2,7 @@
 
 **Endeavor: Retro-Frame**  
 **Repository: \<[http://source.retro-frame.net/format](http://source.retro-frame.net/format)\>**  
-**Version: 1.0!1 (dev)**  
+**Version: 1.0!2 (dev)**  
 **Compliance: Retro-Frame 1.0**  
 **License: MIT (see `LICENSE`)**  
 
@@ -107,6 +107,9 @@ Currently, the following data format specification documents are provided:
 
 * `spec/rfdf-rfff.txt` provides the specification of the Retro-Frame Magic
   Prefix (5246 / "RFFF") format.
+
+* `spec/rfdf-rss.txt` provides the specification of the Retro System
+  Specification (RSS) format.
 
 * `spec/rfdf-rvee2b.txt` provides the specification of the Retro Virtual
   Execution Environment #2 Binary (EE2B) format.

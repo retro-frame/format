@@ -13,7 +13,7 @@ General Documentation
 
 Repository:  <http://source.retro-frame.net/format>
 File:        /doc/rf-format.txt
-Version:     01.00!01
+Version:     01.00!02
 Compliance:  Retro-Frame 1.0
 License:     MIT
 
@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-04-12 : 01.00!01 : Ingo
+2026-05-30 : 01.00!02 : Ingo
 
   Draft.
 
@@ -137,15 +137,17 @@ letters are consecutive). Instead of constraints, certain properties of the
 CHARACTER SET may even be detected at run-time.
 
 If a NUL character is given or assumed, it should be ignored. As a consequence,
-in ASCII domain, UCS-2, UCS-4, UTF-8, UTF-16, UTF-32 and CESU will be processed
-correctly if the text stream only consists of ASCII characters. It may be
-necessary, however, to skip a Byte Order Mark. Thus, if ASCII character set is
-assumed and NUL characters are ignored, the following character code sequences
-shall be skipped if they occur at the very beginning of a text stream:
+in ASCII domain, UTF-8, and CESU-8 will be processed correctly if the text
+stream only consists of ASCII characters. Thus, if ASCII character set is
+assumed, a UTF-8 Byte Order Mark (0xED 0xBB 0xBF) may safely be skipped.
 
-- 0xFE 0xFF
-- 0xFF 0xFE
-- 0xED 0xBB 0xBF
+In contrast, UCS-2, UCS-4, UTF-16 and UTF-32 may be processed incorrectly if
+8-bit characters are processed and NUL characters are ignored (e.g. the
+sequence 0x30 0x00 represents U+3000 IDEOGRAPHIC SPACE in a UCS-2LE or UTF-16LE
+encoded text stream but would be recognized as the digit zero "0"). Thus, those
+formats should always use a Byte Order Mark. If ASCII character set is assumed,
+the Byte Order Marks of UCS-2, UCS-4, UTF-16 and UTF-32 may be skipped only if
+the encoding is considered (e.g. by checking that high bytes are zero).
 
 Character encoding may still be switched if a CODEPAGE identifier is given in
 the RFFF header (see /spec/rfdf-rfff.txt//).
@@ -345,6 +347,7 @@ format version but invalid (e.g. "1.111").
   "CP-SPEC"   CPSPEC      Codepage Specifications
   "RDEFLATE"  RDEFLATE    Raw Deflate Encoding
   "RFFF"      RFFF        Magic Prefix
+  "RSS"       RSS         Retro System Specification
   "SYM"       SYM         Symbol Table (mapping of values to symbolic names)
   "TEXT"      TEXT        Unspecified Text
 
@@ -504,6 +507,7 @@ does not have an extension (i.e. the file name does not contain a period '.').
   ".pcs"       ".PCS"  PCS
   ".rdeflate"  ".RDF"  RDEFLATE
   ".rff"       ".RFF"  RFFF
+  ".rss"       ".RSS"  RSS
   ".symtab"    ".SYM"  SYM
   ".txt"       ".TXT"  TEXT
   ".rvee2b"    ".EE2"  RVEE2B
