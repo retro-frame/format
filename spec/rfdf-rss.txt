@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-05-30 : 01.00!02 : Ingo
+2026-06-13 : 01.00!02 : Ingo
 
   Draft.
 
@@ -138,11 +138,17 @@ characters should be avoided.
 
 The following tokens are used:
 
-- An identifier (which may represent a numeric value) of up to 255 characters.
-  Lowercase letters shall implicitly be converted to uppercase letters.
+- A decimal number in the range 0x00000000.. 0xFFFFFFFF, consisting of a
+  sequence of up to 32 decimal digits.
+- A hexadecimal number in the range 0x00000000.. 0xFFFFFFFF, consisting of a
+  sequence of up to 32 hexadecimal digits ('A'..'F' may be upper- or lowercase)
+  trailed by the letter 'H' (may be upper- or lowercase).
+- An identifier of up to 32 characters. Lowercase letters shall implicitly be
+  converted to uppercase letters. Note that identifiers may start with a digit.
 - A string, enclosed in double-quotes, of up to 255 characters (excluding the
-  double-quoted). No line break shall occur in a string. Note that there is no
-  escape character so that double-quotes are never part of a string.
+  double-quoted). No line break shall occur in a string. Escape character is
+  the reverse solidus ('\'). Currently, only the double-quotes are defined as
+  an escape sequence.
 - The following symbols: ",", ".", ":", "+", "-", "*", "/", "%", "==", "!=",
   "<", "<=", ">", ">=", "<>", "=", "+=", "-=", "*=", "/=", "%=", "&=", "|=",
   "^=", "&", "|", "^", "~", "&&", "||", "^^", "!", "?", "<<", "<<<", ">>",
@@ -168,17 +174,37 @@ There are no restrictions on the format version.
 
   ( WS | [ ";" [ . | WS ]* ] LB )*
 
-<rss-decimal-number>:
+<rss-dec-number>:
 
   9 [_9 ]*
 
+<rss-hex-number>:
+
+  ( X_)*_"H"
+
+<rss-bit>:
+
+  "0" | "1" | A
+
+<rss-bit-mask>:
+
+  <rss-bit> [_<rss-bit> ]*
+
+<rss-string-escape>:
+
+  """"
+
 <rss-string>:
 
-  """"_[_._|_WS_]* """"
+  """"_[_._|_"\"_<rss-string-escape>_|_WS_]* """"
+
+<rss-label>:
+
+  <rss-string>
 
 <rss-identifier>:
 
-  ( "$" | X | 9 | "_" ) [_X |_9 |_"_" ]* [ "'" ]
+  ( "$" | A | 9 | "_" ) [_A |_9 |_"_" ]* [ "'" ]
 
 <rss-import>:
 
@@ -186,7 +212,7 @@ There are no restrictions on the format version.
 
 <rss-data-bus>:
 
-  <rss-identifier> "/" <rss-decimal-number>
+  <rss-identifier> "/" <rss-number>
 
 <rss-non-data-bus>:
 
@@ -202,27 +228,91 @@ There are no restrictions on the format version.
 
 <rss-block-header>:
 
-  <rss-component-type> <rss-string> [ <rss-bus-list> ]
+  <rss-label> [ <rss-bus-list> ]
 
-<rss-component-section>:
+<rss-statement>:
 
-  ( TO DO )
+  (TO DO)
 
-<rss-component-type>:
+<rss-opcode-event>:
 
-  "CPU" | "ROM" | "RAM" | "KEYBOARD" | "SCREEN"
+  "OPCODE" [ <rss-bit-mask> ]*
+
+<rss-key-event>:
+
+  "KEY" [ "PRESSED" | "RELEASED" ] [ <rss-bit-mask> ]*
+
+<rss-bus-event>:
+
+  <rss-identifier> [ "READ" | "WRITE" ] [ <rss-bit-mask> ]
+
+<rss-standard-event>:
+
+  "INIT" | "DONE" | "RESET" | <rss-bus-event>
+
+<rss-cpu-event>:
+
+  <rss-standard-event> | <rss-opcode-event>
+
+<rss-cpu-section>:
+
+  <rss-cpu-event> ":" [ <rss-statement> ]*
+
+<rss-cpu>:
+
+  "CPU" <rss-block-header> "{" [ <rss-cpu-section> ]* "}"
+
+<rss-rom-section>:
+
+  <rss-standard-event> ":" [ <rss-statement> ]*
+
+<rss-rom>:
+
+  "ROM" <rss-block-header> "{" [ <rss-rom-section> ]* "}"
+
+<rss-ram-section>:
+
+  <rss-standard-event> ":" [ <rss-statement> ]*
+
+<rss-ram>:
+
+  "RAM" <rss-block-header> "{" [ <rss-ram-section> ]* "}"
+
+<rss-keyboard-event>:
+
+  <rss-standard-event> | <rss-key-event>
+
+<rss-keyboard-section>:
+
+  <rss-keyboard-event> ":" [ <rss-statement> ]*
+
+<rss-keyboard>:
+
+  "KEYBOARD" <rss-block-header> "{" [ <rss-keyboard-section> ]* "}"
+
+<rss-screen-section>:
+
+  <rss-standard-event> ":" [ <rss-statement> ]*
+
+<rss-screen>:
+
+  "SCREEN" <rss-block-header> "{" [ <rss-screen-section> ]* "}"
 
 <rss-component>:
 
   <rss-block-header> "{" [ <rss-component-section> ]* "}"
 
+<rss-component-type>:
+
+  "CPU" | "ROM" | "RAM" | "KEYBOARD" | "SCREEN"
+
 <rss-system-component>:
 
-  <rss-component-type> <rss-string> "."
+  <rss-component-type> <rss-label> [ <rss-bus-list> ] "."
 
 <rss-system>:
 
-  <rss-block-header> "{" [ <rss-system-component> ]* "}"
+  "SYSTEM" <rss-block-header> "{" [ <rss-system-component> ]* "}"
 
 <rss-body>:
 
