@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-06-13 : 01.00!02 : Ingo
+2026-06-26 : 01.00!02 : Ingo
 
   Draft.
 
@@ -58,10 +58,20 @@ Contents
 
 2. OVERVIEW
 
-3. TEXT DATA FORMAT
-   3.1  Characteristics and character processing
-   3.2  Syntax of version 1.0
-   3.3  Semantics
+3. BASIC CONCEPTS
+   3.1  Systems, components and buses
+   3.1  DEVICE Components
+   3.1  CPU components
+   3.1  ROM components
+   3.1  RAM components
+   3.1  KEYBOARD components
+   3.1  SCREEN components
+   3.1  Keyboard
+
+4. TEXT DATA FORMAT
+   4.1  Characteristics and character processing
+   4.2  Syntax of version 1.0
+   4.3  Semantics
 
 
 
@@ -123,11 +133,165 @@ Paths in a RSS format (e.g. for an import) are represented by universal paths
 
 
 
-3. TEXT DATA FORMAT
+3. BASIC CONCEPTS
 ===============================================================================
 
 
-3.1 Characteristics and character processing
+3.1 Systems, components and buses
+-------------------------------------------------------------------------------
+
+A system is a set of components (in no particular order) which may be connected
+by one or more buses. There may be multiple instances of the same component (it
+depends on the capabilities of those components to behave differently). Systems
+are identified by a label.
+
+Each component ma
+
+
+
+The actual buses of a system are specified if they occur in the <rss-bus-list>
+of a <rss-system-component>. A bus must match the name and data bit length. The
+<rss-bus-list> of a component <rss-block-header> specifies the buses used by
+this component. However, the acutal assignment of such a bus is done by the
+<rss-bus-list> of a <rss-system-component> by position (a hypen '-' indicates
+that a bus provided by a component is not used). The number of data bits must
+match at the position.
+
+Example:
+
+  ROM "ROM" (MEM/8, PORT/8) [...]
+
+  KEYBOARD "Keyboard" (PORT/4) [...]
+
+  DEVICE "Port mapper" (PORT/4, PORT/8) [...]
+
+  CPU "CPU" (ROM/8, INT, PORT/4) [...]
+
+  SYSTEM "SYS123"
+  {
+      ROM "ROM" (ROM/8, PORT/8).  ; ROM/8 becomes MEM/8 within the component
+
+      KEYBOARD "KBD" (PORT/4).  ; bus PORT/4 is different from bus PORT/8
+
+      DEVICE "Port mapper" (PORT/4, PORT/8).
+
+      CPU "CPU" (ROM/8, -, PORT/4).  ; non-data INT bus is not used
+  }
+
+
+3.2 Predefined objects
+-------------------------------------------------------------------------------
+
+READ   $INSTANCE
+PROC   $CLEAR [ '(' <object> ')' ]
+READ   $VALUE '(' <object> [ ',' <object> ]* ')'
+WRITE  $VALUE '(' <object> [ ',' <object> ]* ')'
+READ   $FLAGS ':' ( "CF" | "ZF" | "PF" | "SF" | "AF" )
+WRITE  $FLAGS '/' <bits>
+PROC   $FLAGS '(' <expression> [ ',' <expression> ]* ')'
+READ   $CYCLE_FREQ
+WRITE  $CYCLE_FREQ
+PROC   $FETCH '(' <bus> '/' <data_bits> [ '(' <addr_bits> ')' ] ')
+WRITE  $CYCLES
+PROC   $CYCLES '(' <value> ')'  ; will be $CYCLES += <value>
+READ   $
+WRITE  $
+PROC   $OPCODE_INVALID
+PROC   $HALT
+PROC   $FETCH_ONCE '(' <bus> '/' <data_bits> ')'  ; address will be zero
+
+
+3.1 Keyboard
+-------------------------------------------------------------------------------
+
+As modern keyboards may differ from the retro system keyboard, one of the most
+challenging aspects of retro system emulation is the keyboard input.
+
+The basic concept of the RSS format in terms of keyboards is that a component
+(usually a KEYBOARD component) may specify arbitrary keys with individual codes
+(using the $KEY statement in the initialization section) and emulated events on
+those keys result in KEY PRESSED <key code> and KEY RELEASED <key code> events
+which may be handled by that component.
+
+Example:
+
+  KEYBOARD "Minimal Keyboard" (BUS/1)
+  {
+      $KEY(0).  ; specify key with key code 0
+      $KEY(1).  ; specify key with key code 1
+      $KEY(3).  ; specify key with key code 3 - key code 2 is unused
+
+  KEY PRESSED nn:
+
+      BUS/1(UINT/2(n)) = 1.  ; send 1 to BUS/1 using the key code as address
+
+  KEY RELEASED nn:
+
+      BUS/1(UINT/2(n)) = 0.  ; send 0 to BUS/1 using the key code as address
+  }
+
+The actual source of a keyboard event depends on the emulator. However, the
+$KEY, $KEY_MODIFIER and $KEY_LOCKABLE statements provides additional attributes
+which may be used by an emulator:
+
+- $KEY specifies a normal key.
+
+- $KEY_MODIFIER specifies a modifier key (e.g. SHIFT or ALT) which is intended
+  to be held down (i.e. pressed) until a non-modifier key is pressed (note that
+  multiple modifier keys may be held down at the same time). An emulator may
+  send KEY RELEASED events for all keys which were held down after the non-
+  modifier key is released.
+
+- $KEY_LOCKABLE specifies a key with two different states (active and inactive)
+  which are switched each time the key is pressed. Although the actual behavior
+  of such keys is implemented by the system, an emulator may indicate the state
+  (while treating the key like a normal key otherwise).
+
+All key specification statements expect the key code as the first parameter,
+followed by an optional sequence of one or more emulator keys which will be
+mapped to the specified keys. An emulator key may be one of the following:
+
+- A character literal ( "'" <character "'" ).
+
+- A Latin-1 codepoint value (0x00..0xFF).
+
+- A predefined key constant:
+
+  - The following predefined key constants may be expected to have related keys
+    on each modern system:
+
+    SPACE, BACKSPACE, TAB, RETURN, ESCAPE, L_SHIFT, R_SHIFT, CAPS_LOCK, CTRL,
+    CURSOR_UP, CURSOR_DOWN, CURSOR_LEFT, CURSOR_RIGHT, CURSOR_PAGE_UP,
+    CURSOR_PAGE_DOWN, CURSOR_HOME, CURSOR_END, F1..F12 (function keys),
+    FUNCTION (Fn key).
+
+  - The following predefined key constants may be expected to have related keys
+    if the keyboard has a numeric keypad:
+
+    ENTER, NUMPAD_UP, NUMPAD_DOWN, NUMPAD_LEFT, NUMPAD_RIGHT, NUMPAD_PAGE_UP,
+    NUMPAD_PAGE_DOWN, NUMPAD_HOME, NUMPAD_END, NUMPAD_CENTER (i.e. the '5' key
+    on the numeric keypad), NUMPAD_DECIMAL, NUMPAD_ADD, NUMPAD_SUB, NUMPAD_DIV,
+    NUMPAD_MUL.
+
+  - The following predefined key constants may be expected to have mapped keys
+    or combination of keys:
+
+    CANCEL (CTRL + 'C' or Break key), META (Alt or Option key), SUPER (Windows
+    or Command key).
+
+  - The following predefined key constants are defined but there may be no
+    releated key present on the keyboard:
+
+    PRINT, SYS_REQ, PAUSE, SCROLL_LOCK, NUM_LOCK, HELP, MENU, INSERT, DELETE,
+    NUMPAD_EQUALS, NUMPAD_COMMA, F13..F24.
+
+
+
+4. TEXT DATA FORMAT
+===============================================================================
+
+
+4.1 Characteristics and character processing
 -------------------------------------------------------------------------------
 
 RSS is a not self-delimiting text format using the STANDARD CHARACTER SET.
@@ -163,7 +327,7 @@ recognized (e.g. "<<=" is parsed as "<<" and "=" rather than "<" and "<=").
 There are no restrictions on the format version.
 
 
-3.2 Syntax of version 1.0
+4.2 Syntax of version 1.0
 -------------------------------------------------------------------------------
 
 <rss-format-identifier>:
@@ -230,10 +394,6 @@ There are no restrictions on the format version.
 
   <rss-label> [ <rss-bus-list> ]
 
-<rss-statement>:
-
-  (TO DO)
-
 <rss-opcode-event>:
 
   "OPCODE" [ <rss-bit-mask> ]*
@@ -248,7 +408,7 @@ There are no restrictions on the format version.
 
 <rss-standard-event>:
 
-  "INIT" | "DONE" | "RESET" | <rss-bus-event>
+  "RESET" | <rss-bus-event>
 
 <rss-cpu-event>:
 
@@ -312,7 +472,7 @@ There are no restrictions on the format version.
 
 <rss-system>:
 
-  "SYSTEM" <rss-block-header> "{" [ <rss-system-component> ]* "}"
+  "SYSTEM" <rss-label> "{" [ <rss-system-component> ]* "}"
 
 <rss-body>:
 
@@ -327,5 +487,5 @@ There are no restrictions on the format version.
   <rss-format-identifier>_<rss-header>_<rss-body>
 
 
-3.3 Semantics
+4.3 Semantics
 -------------------------------------------------------------------------------
