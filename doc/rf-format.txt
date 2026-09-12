@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-05-30 : 01.00!02 : Ingo
+2026-09-12 : 01.00!02 : Ingo
 
   Draft.
 
@@ -467,6 +467,12 @@ in order to skip header of footer elements:
 
   ":" [_LB ] [_. |_"^"_( "^" | ":" | "?" ) ]*
 
+Escaped sequences described here should be considered on a lower level than the
+actual format processing and may be removed before characters are processed. As
+a consequence, an escape sequence on the format level may require additional
+circumflex-accents (e.g. if the colon in a <header-element-value> is escaped,
+two circumflex-accents are required like "TEST/1.0:arg0=+^^^:-:arg1=^??"
+which would result in the two header elements "arg0=+^:-" and "arg1=?").
 
 
 4. FILE NAME EXTENSIONS

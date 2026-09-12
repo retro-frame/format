@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-06-26 : 01.00!02 : Ingo
+2026-07-07 : 01.00!02 : Ingo
 
   Draft.
 
@@ -66,12 +66,16 @@ Contents
    3.1  RAM components
    3.1  KEYBOARD components
    3.1  SCREEN components
-   3.1  Keyboard
 
-4. TEXT DATA FORMAT
-   4.1  Characteristics and character processing
-   4.2  Syntax of version 1.0
-   4.3  Semantics
+4. KEYBOARDS
+   4.1  Basic concept
+   4.2  Key specifications
+   4.3  Key images and maps
+
+5. TEXT DATA FORMAT
+   5.1  Characteristics and character processing
+   5.2  Syntax of version 1.0
+   5.3  Semantics
 
 
 
@@ -201,59 +205,90 @@ PROC   $HALT
 PROC   $FETCH_ONCE '(' <bus> '/' <data_bits> ')'  ; address will be zero
 
 
-3.1 Keyboard
+
+4. KEYBOARDS
+===============================================================================
+
+As modern keyboards differ from most original retro system keyboards, the RSS
+format provides specifications which allow emulation of a keyboard.
+
+
+4.1 Basic concept
 -------------------------------------------------------------------------------
 
-As modern keyboards may differ from the retro system keyboard, one of the most
-challenging aspects of retro system emulation is the keyboard input.
-
-The basic concept of the RSS format in terms of keyboards is that a component
-(usually a KEYBOARD component) may specify arbitrary keys with individual codes
-(using the $KEY statement in the initialization section) and emulated events on
-those keys result in KEY PRESSED <key code> and KEY RELEASED <key code> events
-which may be handled by that component.
+The basic concept in terms of keyboards is that a component, usually of but not
+limited to KEYBOARD type, may specify arbitrary keys with individual <codes>
+using the $KEY, $KEY_MODIFIER or $KEY_LOCKABLE statement (see chapter 4.2) in
+the initialization section. Each key, when pressed or released, will raise a
+KEY PRESSED <code> respective KEY RELEASED <code> event which may be handled
+within that component.
 
 Example:
 
-  KEYBOARD "Minimal Keyboard" (BUS/1)
+  KEYBOARD "Example keyboard (3 keys)" (BUS/1)
   {
-      $KEY(0).  ; specify key with key code 0
-      $KEY(1).  ; specify key with key code 1
-      $KEY(3).  ; specify key with key code 3 - key code 2 is unused
+      $KEY(0).          ; specify key with key code 0
+      $KEY(1).          ; specify key with key code 1
+      $KEY_MODIFIER(3). ; specify key with key code 3 (key code 2 is unused)
 
   KEY PRESSED nn:
 
-      BUS/1(UINT/2(n)) = 1.  ; send 1 to BUS/1 using the key code as address
+      BUS/1(UINT/2(n)) = 1. ; send 1 to BUS/1 using the key code as the address
 
   KEY RELEASED nn:
 
-      BUS/1(UINT/2(n)) = 0.  ; send 0 to BUS/1 using the key code as address
+      BUS/1(UINT/2(n)) = 0. ; send 0 to BUS/1 using the key code as the address
   }
 
-The actual source of a keyboard event depends on the emulator. However, the
-$KEY, $KEY_MODIFIER and $KEY_LOCKABLE statements provides additional attributes
-which may be used by an emulator:
+The actual sources of keyboard events depend on the emulator. In general, the
+following two options may be used:
+
+- The same or a similar key is pressed or released on the physical keyboard. In
+  order to achieve mapping, abstract keys may be assigned to emulated keys (see
+  chapter 4.2).
+
+- An image of the emulated keyboard may be shown on the actual screen (virtual
+  keyboard) and the keys on that image may be "pressed" using a mouse or other
+  input device of the actual system (including customized mappings to keys on
+  the physical keyboard). A map of the keyboard image may be specified in order
+  to assign regions of the image to emulated keys (see chapter 4.3).
+
+
+4.2 Key specifications
+-------------------------------------------------------------------------------
+
+The $KEY, $KEY_MODIFIER and $KEY_LOCKABLE statements specify different classes
+of keys:
 
 - $KEY specifies a normal key.
 
 - $KEY_MODIFIER specifies a modifier key (e.g. SHIFT or ALT) which is intended
   to be held down (i.e. pressed) until a non-modifier key is pressed (note that
   multiple modifier keys may be held down at the same time). An emulator may
-  send KEY RELEASED events for all keys which were held down after the non-
-  modifier key is released.
+  send automatic KEY RELEASED events for all modifier keys which were held down
+  immediately after a non-modifier key is pressed. The number of modifier keys
+  is limited to 32.
 
 - $KEY_LOCKABLE specifies a key with two different states (active and inactive)
   which are switched each time the key is pressed. Although the actual behavior
   of such keys is implemented by the system, an emulator may indicate the state
-  (while treating the key like a normal key otherwise).
+  (e.g. by a virtual LED) while treating the key like a normal key otherwise.
+  The number of lockable keys is limited to 32.
 
 All key specification statements expect the key code as the first parameter,
-followed by an optional sequence of one or more emulator keys which will be
-mapped to the specified keys. An emulator key may be one of the following:
+optionally followed by a sequence of one or more abstract keys which will be
+assigned to the specified key. An abstract key may be one of the following:
 
-- A character literal ( "'" <character "'" ).
+- A value of a Retro-Frame character codepoint in the range 0x000000..0xFFFFFF
+  which represents the key (see [COMMON DOCUMENTATION], /spec/rf-char.txt//).
+  Although a wide range of characters may be specified, it is recommended to
+  use this representation of abstract keys only for Latin-1 codepoints which
+  are neither ASCII nor control characters and thus in the range R+00A0..R+00FF
+  (use predefined key constants for control characters and character literals
+  for the range R+0020..R+007E instead).
 
-- A Latin-1 codepoint value (0x00..0xFF).
+- A character literal "'" <character "'" which is (as usual) equivalent to the
+  corresponding ASCII value and thus the Retro-Frame character codepoint.
 
 - A predefined key constant:
 
@@ -285,13 +320,78 @@ mapped to the specified keys. An emulator key may be one of the following:
     PRINT, SYS_REQ, PAUSE, SCROLL_LOCK, NUM_LOCK, HELP, MENU, INSERT, DELETE,
     NUMPAD_EQUALS, NUMPAD_COMMA, F13..F24.
 
+Instead of simply specifying an abstract key in that way, the pseudo-function
+MODIFIED may be used to assign an abstract key to an emulated key having one
+or more modifier keys pressed implicitly. The abstract key is expected as the
+first parameter while one or more key codes of previously specified modifier
+keys follow.
+
+Example:
+
+  $KEY_LOCKABLE(0x10, CAPS_LOCK).
+  $KEY_MODIFIER(0x11, L_SHIFT, R_SHIFT).
+  $KEY_MODIFIER(0x12, CTRL).
+  $KEY_MODIFIER(0x13, META).
+  $KEY(0x20, '0').
+  $KEY(0x21, '1', MODIFIED('!', 0x11)).
+  $KEY(0x22, '2', MODIFIED('\"', 0x11)).
+  $KEY(0x23, '3', MODIFIED('#', 0x11)).
+  $KEY(0x30, 'q', MODIFIED('Q', 0x10), MODIFIED('@', 0x12, 0x13)).
+  $KEY(0x30, 'w', MODIFIED('W', 0x10)).
+  $KEY(0x40, RETURN, ENTER).
 
 
-4. TEXT DATA FORMAT
+4.3 Key images and maps
+-------------------------------------------------------------------------------
+
+In order to visually represent the keyboard, up to 4 images may be specified by
+the $KEYBOARD_IMAGE statement:
+
+- The first image must always be present and shows all keys released while the
+  lockable keys are inactive. This is the default image of the keyboard.
+
+- The second (optional) image shows all keys pressed while the lockable keys
+  are inactive. If given, this image is used to represent pressed keys unless
+  a locked key becomes active and the fourth image (see below) is given. In
+  addition, this image is used to represent released active lockable keys if
+  the third image (see below) is not given.
+
+- The third (optional) image shows all keys released while the lockable keys
+  are active.
+
+- The fourth (optional) image shows all keys pressed while the lockable keys
+  are active.
+
+The keyboard image may be used for key events if key mapping is given be one or
+more $KEYBOARD_MAP statements. Such a statement expects one or more strings
+which draw the map using hexadecimal values (without any prefix) to represent
+the key codes and the hypen '-', the vertial bar '|' and the plus sign '+' to
+represent the boundaries of the individual key (i.e. each value should be
+surrounded by those characters). While an appropriate use of those characters
+may help to make the map more visible, they are equivalent on evaluation.
+
+Example:
+
+  $KEYBOARD_MAP(
+      "+---+---+",
+      "|000|001|",
+      "++--+- ++",
+      " | 003 |",
+      " +-----+").
+
+The maximum length of those strings determine the number of virtual columns + 1
+while the number of strings determine the number of virtual rows + 1 (thus, in
+the example above, there are 8 columns and 4 rows). The width and height of the
+bitmap, in pixels, should be a multiple of the number of columns respective
+rows.
+
+
+
+5. TEXT DATA FORMAT
 ===============================================================================
 
 
-4.1 Characteristics and character processing
+5.1 Characteristics and character processing
 -------------------------------------------------------------------------------
 
 RSS is a not self-delimiting text format using the STANDARD CHARACTER SET.
@@ -300,23 +400,24 @@ On input, NUL characters shall be ignored but other control characters except
 whitespace (including line breaks) shall be considered invalid. On output, NUL
 characters should be avoided.
 
-The following tokens are used:
+The following tokens are defined:
 
-- A decimal number in the range 0x00000000.. 0xFFFFFFFF, consisting of a
-  sequence of up to 32 decimal digits.
-- A hexadecimal number in the range 0x00000000.. 0xFFFFFFFF, consisting of a
-  sequence of up to 32 hexadecimal digits ('A'..'F' may be upper- or lowercase)
-  trailed by the letter 'H' (may be upper- or lowercase).
-- An identifier of up to 32 characters. Lowercase letters shall implicitly be
-  converted to uppercase letters. Note that identifiers may start with a digit.
-- A string, enclosed in double-quotes, of up to 255 characters (excluding the
-  double-quoted). No line break shall occur in a string. Escape character is
-  the reverse solidus ('\'). Currently, only the double-quotes are defined as
-  an escape sequence.
-- The following symbols: ",", ".", ":", "+", "-", "*", "/", "%", "==", "!=",
+- Symbol
+
+ ",", ".", ":", "+", "-", "*", "/", "%", "==", "!=",
   "<", "<=", ">", ">=", "<>", "=", "+=", "-=", "*=", "/=", "%=", "&=", "|=",
   "^=", "&", "|", "^", "~", "&&", "||", "^^", "!", "?", "<<", "<<<", ">>",
   ">>>", "(", ")", "[", "]", "{" and "}".
+- A string, enclosed in double-quotes, of up to 127 characters (excluding the
+  double-quotes). No line break shall occur in a string. Escape character is
+  the reverse solidus ('\'). Currently, only the double-quotes are defined as
+  an escape sequence.
+- A binary, decimal or hexadecimal number in the range 0x00000000.. 0xFFFFFFFF.
+  Leading zeros are ignored. Binary numbers are prefixed by "0b" or "0B" while
+  hexadecimal numbers are prefixed by "0x" or "0X". The total length of a number
+  token is 63 characters and numbers must be separated from other 
+- An identifier of up to 32 characters. Lowercase letters shall implicitly be
+  converted to uppercase letters. Note that identifiers may start with a digit.
 
 Two consecutive identifiers must be separated by whitespace if the leading
 identifier does not have a trailing single-quote ''' and the successing
@@ -327,7 +428,7 @@ recognized (e.g. "<<=" is parsed as "<<" and "=" rather than "<" and "<=").
 There are no restrictions on the format version.
 
 
-4.2 Syntax of version 1.0
+5.2 Syntax of version 1.0
 -------------------------------------------------------------------------------
 
 <rss-format-identifier>:
@@ -487,5 +588,5 @@ There are no restrictions on the format version.
   <rss-format-identifier>_<rss-header>_<rss-body>
 
 
-4.3 Semantics
+5.3 Semantics
 -------------------------------------------------------------------------------
