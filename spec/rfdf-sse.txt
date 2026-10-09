@@ -9,10 +9,10 @@
 
 FORMAT - Retro-Frame Data Format Specifications
 
-RSS - Retro System Specification ("RSS")
+SSE - System Specification for Emulation ("SSE")
 
 Repository:  <http://source.retro-frame.net/format>
-File:        /spec/rfdf-rss.txt//
+File:        /spec/rfdf-sse.txt//
 Version:     01.00!02
 Compliance:  Retro-Frame 1.0
 License:     MIT
@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-07-07 : 01.00!02 : Ingo
+2026-09-26 : 01.00!02 : Ingo
 
   Draft.
 
@@ -101,10 +101,10 @@ be used by other specifications.
 1.2 Scope
 -------------------------------------------------------------------------------
 
-This document specifies the Retro System Specification (RSS) data format of the
-type "RSS" which may be used to specify the full behavior of systems and their
-components (e.g. CPU, RAM or a keyboard). It is intended that systems which are
-specified in this way can be emulated.
+This document specifies the System Specification for Emulation (SSE) data
+format of the type "SSE" which may be used to specify the full behavior of
+systems and their components (e.g. CPU, RAM or a keyboard). It is intended
+that systems which are specified in this way can be emulated.
 
 
 1.3 References
@@ -121,19 +121,20 @@ Retro-Frame homepage, see <http://source.retro-frame.net/>.
 2. OVERVIEW
 ===============================================================================
 
-We undertake the very challenging task to provide a specification format which
-allows to specify computer systems including their components so accurately
-that they can be emulated soley based on that specification.
+The SSE format is intended to provide to specifications of computer systems
+including their components so accurately that they can be emulated soley based
+on that specification. Although the focus is on retro systems, any system may
+be specified by the SSE format as long as all relevant features are covered.
 
-Although the focus is on retro systems, any system may be specified by the RSS
-format as long as all relevant features are covered.
+The SSE format provides a simple import mechanism which allows re-use of parts
+of the entire specification (e.g. a CPU which is specified by one SSE format
+and may be used by other SSE formats for several systems which use that CPU).
 
-The RSS format provides a simple import mechanism which allows re-use of parts
-of the entire specification (e.g. a CPU which is specified by one RSS format
-and may be used by RSS formats of different systems which use that CPU).
-
-Paths in a RSS format (e.g. for an import) are represented by universal paths
-(see [COMMON DOCUMENTATION], /spec/rf-path.txt//).
+All paths in the SSE format (e.g. for an import) are represented by relative
+universal paths (see [COMMON DOCUMENTATION], /spec/rf-path.txt//). Connecting
+path references may be used to distinguish different base paths which must be
+specified by the implementation (e.g. "SSE:" prefix for includes or ("FLOPPY:"
+prefix for floppy disk images).
 
 
 
@@ -153,11 +154,11 @@ Each component ma
 
 
 
-The actual buses of a system are specified if they occur in the <rss-bus-list>
-of a <rss-system-component>. A bus must match the name and data bit length. The
-<rss-bus-list> of a component <rss-block-header> specifies the buses used by
+The actual buses of a system are specified if they occur in the <sse-bus-list>
+of a <sse-system-component>. A bus must match the name and data bit length. The
+<sse-bus-list> of a component <sse-block-header> specifies the buses used by
 this component. However, the acutal assignment of such a bus is done by the
-<rss-bus-list> of a <rss-system-component> by position (a hypen '-' indicates
+<sse-bus-list> of a <sse-system-component> by position (a hypen '-' indicates
 that a bus provided by a component is not used). The number of data bits must
 match at the position.
 
@@ -209,7 +210,7 @@ PROC   $FETCH_ONCE '(' <bus> '/' <data_bits> ')'  ; address will be zero
 4. KEYBOARDS
 ===============================================================================
 
-As modern keyboards differ from most original retro system keyboards, the RSS
+As modern keyboards differ from most original retro system keyboards, the SSE
 format provides specifications which allow emulation of a keyboard.
 
 
@@ -394,7 +395,7 @@ rows.
 5.1 Characteristics and character processing
 -------------------------------------------------------------------------------
 
-RSS is a not self-delimiting text format using the STANDARD CHARACTER SET.
+SSE is a not self-delimiting text format using the STANDARD CHARACTER SET.
 
 On input, NUL characters shall be ignored but other control characters except
 whitespace (including line breaks) shall be considered invalid. On output, NUL
@@ -431,161 +432,161 @@ There are no restrictions on the format version.
 5.2 Syntax of version 1.0
 -------------------------------------------------------------------------------
 
-<rss-format-identifier>:
+<sse-format-identifier>:
 
-  "RSS/1.0"
+  "SSE/1.0"
 
-<rss-ws>:
+<sse-ws>:
 
   ( WS | [ ";" [ . | WS ]* ] LB )*
 
-<rss-dec-number>:
+<sse-dec-number>:
 
   9 [_9 ]*
 
-<rss-hex-number>:
+<sse-hex-number>:
 
   ( X_)*_"H"
 
-<rss-bit>:
+<sse-bit>:
 
   "0" | "1" | A
 
-<rss-bit-mask>:
+<sse-bit-mask>:
 
-  <rss-bit> [_<rss-bit> ]*
+  <sse-bit> [_<sse-bit> ]*
 
-<rss-string-escape>:
+<sse-string-escape>:
 
   """"
 
-<rss-string>:
+<sse-string>:
 
-  """"_[_._|_"\"_<rss-string-escape>_|_WS_]* """"
+  """"_[_._|_"\"_<sse-string-escape>_|_WS_]* """"
 
-<rss-label>:
+<sse-label>:
 
-  <rss-string>
+  <sse-string>
 
-<rss-identifier>:
+<sse-identifier>:
 
   ( "$" | A | 9 | "_" ) [_A |_9 |_"_" ]* [ "'" ]
 
-<rss-import>:
+<sse-import>:
 
   "IMPORT" <universal-path> "."
 
-<rss-data-bus>:
+<sse-data-bus>:
 
-  <rss-identifier> "/" <rss-number>
+  <sse-identifier> "/" <sse-number>
 
-<rss-non-data-bus>:
+<sse-non-data-bus>:
 
-  <rss-identifier>
+  <sse-identifier>
 
-<rss-bus>:
+<sse-bus>:
 
-  <rss-data-bus> | <rss-non-data-bus>
+  <sse-data-bus> | <sse-non-data-bus>
 
-<rss-bus-list>:
+<sse-bus-list>:
 
-  "(" <rss-bus> [ "," <rss-bus> ]* ")"
+  "(" <sse-bus> [ "," <sse-bus> ]* ")"
 
-<rss-block-header>:
+<sse-block-header>:
 
-  <rss-label> [ <rss-bus-list> ]
+  <sse-label> [ <sse-bus-list> ]
 
-<rss-opcode-event>:
+<sse-opcode-event>:
 
-  "OPCODE" [ <rss-bit-mask> ]*
+  "OPCODE" [ <sse-bit-mask> ]*
 
-<rss-key-event>:
+<sse-key-event>:
 
-  "KEY" [ "PRESSED" | "RELEASED" ] [ <rss-bit-mask> ]*
+  "KEY" [ "PRESSED" | "RELEASED" ] [ <sse-bit-mask> ]*
 
-<rss-bus-event>:
+<sse-bus-event>:
 
-  <rss-identifier> [ "READ" | "WRITE" ] [ <rss-bit-mask> ]
+  <sse-identifier> [ "READ" | "WRITE" ] [ <sse-bit-mask> ]
 
-<rss-standard-event>:
+<sse-standard-event>:
 
-  "RESET" | <rss-bus-event>
+  "RESET" | <sse-bus-event>
 
-<rss-cpu-event>:
+<sse-cpu-event>:
 
-  <rss-standard-event> | <rss-opcode-event>
+  <sse-standard-event> | <sse-opcode-event>
 
-<rss-cpu-section>:
+<sse-cpu-section>:
 
-  <rss-cpu-event> ":" [ <rss-statement> ]*
+  <sse-cpu-event> ":" [ <sse-statement> ]*
 
-<rss-cpu>:
+<sse-cpu>:
 
-  "CPU" <rss-block-header> "{" [ <rss-cpu-section> ]* "}"
+  "CPU" <sse-block-header> "{" [ <sse-cpu-section> ]* "}"
 
-<rss-rom-section>:
+<sse-rom-section>:
 
-  <rss-standard-event> ":" [ <rss-statement> ]*
+  <sse-standard-event> ":" [ <sse-statement> ]*
 
-<rss-rom>:
+<sse-rom>:
 
-  "ROM" <rss-block-header> "{" [ <rss-rom-section> ]* "}"
+  "ROM" <sse-block-header> "{" [ <sse-rom-section> ]* "}"
 
-<rss-ram-section>:
+<sse-ram-section>:
 
-  <rss-standard-event> ":" [ <rss-statement> ]*
+  <sse-standard-event> ":" [ <sse-statement> ]*
 
-<rss-ram>:
+<sse-ram>:
 
-  "RAM" <rss-block-header> "{" [ <rss-ram-section> ]* "}"
+  "RAM" <sse-block-header> "{" [ <sse-ram-section> ]* "}"
 
-<rss-keyboard-event>:
+<sse-keyboard-event>:
 
-  <rss-standard-event> | <rss-key-event>
+  <sse-standard-event> | <sse-key-event>
 
-<rss-keyboard-section>:
+<sse-keyboard-section>:
 
-  <rss-keyboard-event> ":" [ <rss-statement> ]*
+  <sse-keyboard-event> ":" [ <sse-statement> ]*
 
-<rss-keyboard>:
+<sse-keyboard>:
 
-  "KEYBOARD" <rss-block-header> "{" [ <rss-keyboard-section> ]* "}"
+  "KEYBOARD" <sse-block-header> "{" [ <sse-keyboard-section> ]* "}"
 
-<rss-screen-section>:
+<sse-screen-section>:
 
-  <rss-standard-event> ":" [ <rss-statement> ]*
+  <sse-standard-event> ":" [ <sse-statement> ]*
 
-<rss-screen>:
+<sse-screen>:
 
-  "SCREEN" <rss-block-header> "{" [ <rss-screen-section> ]* "}"
+  "SCREEN" <sse-block-header> "{" [ <sse-screen-section> ]* "}"
 
-<rss-component>:
+<sse-component>:
 
-  <rss-block-header> "{" [ <rss-component-section> ]* "}"
+  <sse-block-header> "{" [ <sse-component-section> ]* "}"
 
-<rss-component-type>:
+<sse-component-type>:
 
   "CPU" | "ROM" | "RAM" | "KEYBOARD" | "SCREEN"
 
-<rss-system-component>:
+<sse-system-component>:
 
-  <rss-component-type> <rss-label> [ <rss-bus-list> ] "."
+  <sse-component-type> <sse-label> [ <sse-bus-list> ] "."
 
-<rss-system>:
+<sse-system>:
 
-  "SYSTEM" <rss-label> "{" [ <rss-system-component> ]* "}"
+  "SYSTEM" <sse-label> "{" [ <sse-system-component> ]* "}"
 
-<rss-body>:
+<sse-body>:
 
-  [ <rss-import> | <rss-component> | <rss-system> ]*
+  [ <sse-import> | <sse-component> | <sse-system> ]*
 
-<rss-header>:
+<sse-header>:
 
   [ <rf-skip-element>_]* ( LB | "??" )
 
-<rss>:
+<sse>:
 
-  <rss-format-identifier>_<rss-header>_<rss-body>
+  <sse-format-identifier>_<sse-header>_<sse-body>
 
 
 5.3 Semantics

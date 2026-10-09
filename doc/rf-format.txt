@@ -347,7 +347,7 @@ format version but invalid (e.g. "1.111").
   "CP-SPEC"   CPSPEC      Codepage Specifications
   "RDEFLATE"  RDEFLATE    Raw Deflate Encoding
   "RFFF"      RFFF        Magic Prefix
-  "RSS"       RSS         Retro System Specification
+  "SSE"       SSE         System Specification for Emulation
   "SYM"       SYM         Symbol Table (mapping of values to symbolic names)
   "TEXT"      TEXT        Unspecified Text
 
@@ -475,6 +475,7 @@ two circumflex-accents are required like "TEST/1.0:arg0=+^^^:-:arg1=^??"
 which would result in the two header elements "arg0=+^:-" and "arg1=?").
 
 
+
 4. FILE NAME EXTENSIONS
 ===============================================================================
 
@@ -513,7 +514,7 @@ does not have an extension (i.e. the file name does not contain a period '.').
   ".pcs"       ".PCS"  PCS
   ".rdeflate"  ".RDF"  RDEFLATE
   ".rff"       ".RFF"  RFFF
-  ".rss"       ".RSS"  RSS
+  ".sse"       ".SSE"  SSE
   ".symtab"    ".SYM"  SYM
   ".txt"       ".TXT"  TEXT
   ".rvee2b"    ".EE2"  RVEE2B
