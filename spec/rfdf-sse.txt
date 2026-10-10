@@ -9,7 +9,7 @@
 
 FORMAT - Retro-Frame Data Format Specifications
 
-SSE - System Specification for Emulation ("SSE")
+SSE - System Specifications for Emulation ("SSE")
 
 Repository:  <http://source.retro-frame.net/format>
 File:        /spec/rfdf-sse.txt//

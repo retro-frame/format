@@ -347,7 +347,7 @@ format version but invalid (e.g. "1.111").
   "CP-SPEC"   CPSPEC      Codepage Specifications
   "RDEFLATE"  RDEFLATE    Raw Deflate Encoding
   "RFFF"      RFFF        Magic Prefix
-  "SSE"       SSE         System Specification for Emulation
+  "SSE"       SSE         System Specifications for Emulation
   "SYM"       SYM         Symbol Table (mapping of values to symbolic names)
   "TEXT"      TEXT        Unspecified Text
 

@@ -1,0 +1,540 @@
+\documentclass{scrartcl}
+
+\usepackage[ngerman]{babel}
+
+\title{SSE (System Specifications for Emulation) Handbuch}
+\author{Copyright (c) 2026 Ingo Boehmer $\langle$ingo@retro-leisure.net$\rangle$ }
+\date{Version 1.0!0}
+
+\begin{document}
+
+\begin{titlepage}
+\maketitle
+\vspace{40pt}
+\tableofcontents
+\end{titlepage}
+
+\newpage
+
+\section{Einleitung}
+
+\noindent SSE (System Specifications for Emulation) ist ein \textit{Retro-Frame} Textdatenformat. Ziel des Formats ist es, IT-Systeme so detailliert zu spezifizieren, dass eine Ausführung in einem Emulator möglich ist. Dabei können Teile der Spezifikation bewusst offen gehalten werden oder zum Zeitpunkt der Ausführung verändert bzw. ergänzt werden (z.B. die Bereitstellung eines konkreten ROM-Abbilds).
+
+\vspace{10pt}
+\noindent Das SSE-Format versucht, das logische Design von IT-Systemen so natürlich wie möglich abbildbar zu machen. Dabei liegt der Fokus auf \textit{Retro-Systemen} für Mikrocomputer, so dass bei der Systemspezifikation Einschränkungen in Kauf genommen werden, um die Implementierung eines Emulators so einfach wie möglich zu halten. Obwohl nicht auf Intel-Architekturen beschränkt, kann die betrachtete Ära gut durch die Intel-CPUs vom 4004 bis zum 80486 eingegrenzt werden.
+
+\section{Grundkonzepte}
+
+\noindent \textit{IT-Systeme}, im Folgenden kurz als \textbf{Systeme} \textit{(systems)} bezeichnet, können unterschiedlich komplex sein. Im einfachsten Fall handelt es sich um eine einzelne Komponente, die eine spezifische Aufgabe erfüllt. Im komplexeren Fällen besteht ein System aus einer Vielzahl von Komponenten, die miteinander zusammenwirken und vielfältige Aufgaben erfüllen können. Solche Komponenten können Mikrochips (z.B. CPU-, ROM- oder RAM-Chips) oder Ein-/Ausgabegeräte sein (z.B. Tastatur oder Bildschirm). Komponenten können wiederum weitere (Sub-)Komponenten beinhalten und werden damit ihrerseits zu einem System. Zwischen verbundenen Komponenten muss eine Interaktion (d.h. der Austausch von Daten) möglich sein.
+
+\vspace{10pt}
+\noindent Zentraler Gegenstand des SSE-Formats ist somit die \textbf{Komponente} \textit{(component)}, die Teil eines Systems oder selbst ein System sein kann.
+
+\subsection{Äußere Spezifikation von Komponenten}
+
+\noindent Die \textit{äußere Spezifikation} einer Komponente besteht aus \textbf{Attributen} \textit{(attributes)}, \textbf{Parametern} \textit{(parameters)} sowie \textbf{Bussen} \textit{(buses)} und dient dazu, eine Komponente nutzen zu können, ohne ihren inneren Aufbau kennen oder verstehen zu müssen.
+
+\subsubsection{Attribute}
+
+\noindent \textit{Attribute} dienen der Benennung und Beschreibung einer Komponente:
+
+\begin{itemize}
+	\item Ein \textbf{Bezeichner} \textit{(identifier)} dient der eindeutigen Referenzierung einer Komponente. Er muss stets angegeben werden und darf nur einmalig vorkommen, d.h. zwei verschiedene Komponenten dürfen nicht denselben Bezeichner verwenden. Der Bezeichner ist das einzige Attribut, das bei der inneren Spezifikation nutzbar ist, nämlich bei der Zuordnung von (Sub-)Komponenten.
+	\item Eine \textbf{Beschriftung} \textit{(label)} dient der leichteren textuellen Identifizierung einer Komponente durch den Benutzer. Zumindest Komponenten bzw. Systeme, die direkt ausgeführt werden können, sollten eine Beschriftung als Attribut haben.
+	\item Ein \textbf{Langtext} \textit{(description)} kann eine Komponente in mehreren Sätzen ausführlicher erläutern als die Beschriftung. Ob und wie ein solcher Langtext angezeigt wird, hängt vom Emulator ab. Um einfache Formatierungen zu ermöglichen, sollten \textit{Markdown}-Elemente vom Emulator erkannt und geeignet dargestellt werden.
+	\item \textbf{Tags} \textit{(tags)} sind dafür gedacht, Komponenten mit bestimmten Gemeinsamkeiten gruppieren oder filtern zu können (z.B. sollte eine CPU-Komponente immer den Tag \#CPU erhalten). Um eine einheitliche Verwendung von Tags zu ermöglichen, sind einige Tags durch SSE vordefiniert.
+\end{itemize}
+
+\noindent Mit Ausnahme des Bezeichners, der immer am Anfang stehen muss, können Attribute in beliebiger Reihenfolge (auch gemischt) eingefügt werden. Langtext sowie Tags können auch mehrfach vorkommen und werden in diesen Fällen inkrementell erweitert.
+
+\subsubsection{Parameter}
+
+\noindent Neben den Attributen können für Komponenten \textit{Parameter} spezifiziert werden, die eine dynamische Konfiguration durch den Emulator ermöglichen (z.B. Festlegung der Speicherkapazität eines RAMs oder der Taktung einer CPU).
+
+\vspace{10pt}
+\noindent Solche Parameter können auch bei der Zuordnung einer Komponente zu einem System gesetzt werden (z.B. kann ein TRS-80 Model I System die Spezifikation einer Zilog Z80 CPU, deren Taktung über einen Parameter frei wählbar ist, fest auf 1,77 MHz festlegen). Parameter werden innerhalb einer Komponente als Konstanten betrachtet.
+
+\subsubsection{Busse}
+
+\noindent Das Konzept von \textit{Bussen} wird verwendet, um Komponenten logisch miteinander zu verbinden, wobei im Gegensatz zu physischen Bussen Adress- und Datenleitungen miteinander kombiniert werden (es gibt also weder eine Trennung von Adress- und Datenleitungen noch das Gegenteil, z.B. durch Zeit-Multiplexing).
+
+\vspace{10pt}
+\noindent Während bei einem Bus die Bitbreite für die Daten immer festgelegt sein muss, sind Adressen grundsätzlich unbeschränkt. Es können sich aber Einschränkungen aus der inneren Spezifikation einer Komponenten ergeben. Von einem kombinierten Adress- und Datenbus können Komponenten lesen \textit{(read)} oder auf einen solchen schreiben \textit{(write)}.
+
+\vspace{10pt}
+\noindent Als Spezialfälle können Busse ohne Adresse (z.B. bei Test-Pins) und/oder ohne Daten (z.B. bei der \textit{send register control} Instruktion des Intel 4004) spezifiziert werden, wobei in letzterem Fall statt Lese- und Schreibereignissen auf die Daten lediglich ein allgemeines Ereignis \textit{(event)} ausgelöst wird. Busse, die weder eine Adresse noch Daten transportieren, dienen ausschließlich dem Auslösen solcher Ereignisse (z.B. Interrupts).
+
+\subsection{Innere Spezifikation von Komponenten}
+
+\noindent Die \textit{innere Spezifikation} einer Komponente beschreibt deren konkrete Wirkungsweise und verwendet dazu \textbf{Sprachelemente}, die grob an den Konzepten von \textit{C} ausgerichtet sind (siehe Kapitel \ref{sec:language}).
+
+\subsubsection{Definitionsteil}
+
+\noindent Der \textit{Definitionsteil} einer Komponente dient der statischen Initialisierung und darf keine Variablen in Anweisungen enthalten. Da Komponenten-Parameter bei der inneren Spezifikation als Konstanten gelten, kann der Definitionsteil aber von diesen Parametern abhängen.
+
+\vspace{10pt}
+\noindent Typische Elemente eines Definitionsteils sind:
+
+\begin{itemize}
+	\item Zuordnung von \textbf{(Sub-)Komponenten}, womit die spezifizierte Komponente zu einem \textit{System} wird. Dabei können \textit{Busse} zur Interaktion zwischen den Komponenten und dem System selbst spezifiziert werden.
+	\item Definition von \textbf{Konstanten} und \textbf{Variablen}, die dann überall in der Komponenten-Spezifikation verfügbar sind.
+	\item Verwendung \textbf{vordefinierter Makros}, die der statischen Spezifikation dienen. Damit können z.B. Bitmaps und Layouts eines Keyboards oder Register einer CPU spezifiziert werden (siehe Kapitel \ref{subsubsec:predefinedmacros} und \ref{subsec:predefinedmacrosref}).
+	\item Definition von \textbf{benutzerdefinierten Makros} (vom Typ \textit{read}, \textit{write} oder \textit{event}), die an späterer Stelle zur Vereinfachung der Spezifikation dienen und ähnlich wie Funktionen oder Prozeduren genutzt werden können.
+\end{itemize}
+
+\subsubsection{Handler}
+
+\noindent \textit{Handler} sind Abschnitte der Spezifikation einer Komponente, die ausführbare Anweisungen mit Variablen enthalten können, welche beim Eintreten eines definierten \textit{Ereignisses} ausgeführt werden.
+
+\vspace{10pt}
+\noindent Es können vier Arten von Handlern unterschieden werden:
+
+\begin{itemize}
+	\item Der \textbf{Reset-Handler} (\texttt{RESET}) wird ausgelöst, wenn ein System gestartet oder zurückgesetzt wird. Ein solches Ereignis wird zunächst implizit rekursiv an alle Sub-Komponenten weitergegeben, bevor der Handler der Komponente selbst ausgelöst wird.
+	\item \textbf{Fetch-Handler} (\texttt{FETCH}) werden ausgelöst, wenn beim Laden einer Instruktion das vorgegebene Muster \textit{(pattern)} auftritt. Im einfachsten Fall handelt es sich hierbei um einen \textit{Opcode}.
+	\item \textbf{Bus-Handler} (\texttt{READ}/\texttt{WRITE}/\texttt{EVENT}) werden ausgelöst, wenn ein Lese- oder Schreibzugriff bzw. ein allgemeines Ereignis auf einem \textit{Bus} auftritt. Die Adressen können dabei als \textit{Pattern} spezifziert werden.
+	\item Schließlich können \textbf{makrospezifische Handler} (z.B. \texttt{KEY RELEASED} oder \texttt{TIMER}) spezifiziert werden, die im jeweiligen Kontext ausgelöst werden. Je nach Handler können auch hier \textit{Pattern} eingesetzt werden, etwa um einen Tastencode oder eine Timer ID zu übermitteln.
+\end{itemize}
+
+\noindent Durch den Pattern-Mechanismus bei einigen Handlern kann festgelegt werden, dass diese nur in bestimmten Fällen ausgeführt werden, wenn das Ereignis eintritt. Damit können beispielsweise sehr einfach mehrere Komponenten (z.B. ROM und RAM) denselben Bus für verschiedene Adressbereiche verwenden, indem beim jeweiligen Bus-Handler der Adressbereich durch geeignete Pattern eingeschränkt. Tritt auf dem Bus ein Ereignis auf einer bestimmten Adresse auf, werden nur die Bus-Handler ausgeführt, deren Pattern auf diese Adresse passen \textit{(matchen)}.
+
+\vspace{10pt}
+\noindent Um die Anzahl an Handlern so gering wie möglich zu halten, können Teile der Pattern variabel gehalten werden (z.B. kann beim Intel 8008 das Pattern \texttt{00???111} für die Instruktion \texttt{RET} verwendet werden, so dass nur ein Handler spezifiziert werden muss oder beim Zilog Z80 kann das Pattern \texttt{000r0010} für die Instruktion \texttt{LD reg16,A} verwendet werden, wobei der Handler auf \texttt{r/1} zugreifen kann, um variabel das Registerpaar \texttt{BC} oder \texttt{DE} zu bestimmen).
+
+\vspace{10pt}
+\noindent Für eine vollständige Referenz aller Handler siehe Kapitel \ref{subsec:handlerref}.
+
+\subsubsection{Interaktion mit der Umgebung}
+\label{subsubsec:predefinedmacros}
+
+\noindent Während Busse zur Interaktion zwischen den Komponenten genutzt werden können, stehen zur Interaktion einer Komponente mit der Umgebung \textit{(environment)}, d.h. dem Emulator bzw. dem Host-System, eine Reihe \textbf{vordefinierter Makros} zur Verfügung. Solche Makros beginnen immer mit einem Dollar-Zeichen \textbf{\$} und können wie benutzerdefinierte Makros vom Typ \textit{read}, \textit{write} oder \textit{event} sein.
+
+\vspace{10pt}
+\noindent Folgende Arten der Interaktion mit der Umgebung werden derzeit unterstützt:
+
+\begin{itemize}
+	\item ASCII-basierte zeichenorientierte Ein- und Ausgabe mittels \textbf{\$CHAR\_READ} und \textbf{\$CHAR\_WRITE}, wobei bei der Eingabe gewartet wird, bis ein Zeichen verfügbar ist (\textit{blocking call)}. Die genaue Funktion wird durch den Emulator bestimmt. Standardmäßig sollte \$CHAR\_READ ein Zeichen von \texttt{stdin} lesen und \$CHAR\_WRITE ein Zeichen nach \texttt{stdout} schreiben.
+	\item Bildschirm-Ausgabe im Text- oder Grafikmodus, der über \textbf{\$DISPLAY\_MODE} gesetzt werden kann. Im Textmodus müssen die Bitmaps aller darstellbaren Zeichen über \textbf{\$CHAR\_IMAGE} spezifiziert werden.
+	\item Tastatur-Eingabe über eine virtuelle Tastatur, die über \textbf{\$KEYBOARD\_IMAGE} und \textbf{\$KEYBOARD\_MAP} spezifiziert wird, oder über Zuordnung von Zeichen mittels \textbf{\$KEY}.
+	\item xxx.
+\end{itemize}
+
+\noindent Für eine vollständige Referenz aller vordefinierten Makros siehe Kapitel \ref{subsec:predefinedmacrosref}.
+
+\subsection{Spezifikationsdateien}
+
+\noindent Eine Spezifikation von IT-Systemen im SSE-Format erfolgt in Textform in sog. SSE-Dateien, die in einen Emulator geladen werden können. Über einen Import-Mechanismus ist es möglich, die Spezifikation mehrerer Komponenten auf verschiedene Dateien zu verteilen, die dann nicht explizit geladen werden müssen. Jedoch muss jede Komponente vollständig innerhalb einer SSE-Datei spezifiziert werden (d.h. es gibt keinen allgemeinen Include-Mechanismus).
+
+\vspace{10pt}
+\noindent Neben den SSE-Dateien können andere Formate, insbesondere Bitmaps im BMP-Format und Speicherabbildungen im ROM-Format, Teil der Spezifikation sein. Solche Dateien werden grundsätzlich über einen individuellen Mechanismus geladen.
+
+\subsubsection{SSE-Dateien}
+
+\subsubsection{Ressourcen-Dateien}
+
+\section{Sprachelemente}
+\label{sec:language}
+
+\subsection{Datentypen}
+
+\noindent SSE unterstützt eine Reihe von Datentypen. Während mit \textit{skalaren} Datentypen gerechnet werden kann (in Form von \textit{Ausdrücken}, die \textit{Zahlenwerte} ergeben), dienen \textit{textuelle} Datentypen allein der möglichen Anzeige durch einen Emulator. \textit{Zusammengesetzte} Datentypen hingegen dienen dem strukturierten Zugriff auf Werte dieser beiden Datentypen.
+
+\subsubsection{Vorzeichenlose Ganzzahlen $(unsigned~integer)$}
+
+\noindent Als skalarer Standard-Datentyp, d.h. falls der Datentype eines skalaren Wertes bzw. \textit{Zahlenwertes} nicht bestimmt werden kann, werden vorzeichenlose Ganzzahlen \textit{(unsigned integers)} angenommen.
+
+\vspace{10pt}
+\noindent Der Wertebereich von vorzeichenlosen Ganzzahlen hängt von der sog. \textit{Breite} (d.h. der Anzahl von Bits, mit denen der Zahlenwert dargestellt wird) ab. Bei $n$ Bits ist der Wertebereich $0..2^{n} - 1$.
+
+\vspace{10pt}
+\noindent Die zulässige Breite liegt im Bereich $1..64$. Eine vorzeichenlose Ganzzahl mit jeder Breite im angegebenen Bereich ist ein eigener Datentyp. Ist die Breite nicht angegeben, wird als Breite $64$ angenommen, jedoch handelt es sich um einen eigenen Datentyp, der nicht mit dem Datentyp identisch ist, der eine explizite Breite von 64 Bit hat.
+
+\subsubsection{Vorzeichenbehaftete Ganzzahlen $(signed~integer)$}
+
+\noindent Ein weiterer skalarer Datentyp sind vorzeichenbehaftete Ganzzahlen \textit{(signed integers)}. Solche Datentypen erlauben negative Werte, die als Zweierkomplement dargestellt werden.
+
+\vspace{10pt}
+\noindent Der Wertebereich von vorzeichenbehafteten Ganzzahlen hängt von der sog. \textit{Breite} (d.h. der Anzahl von Bits, mit denen der Zahlenwert dargestellt wird) ab. Bei $n$ Bits ist der Wertebereich $-2^{n-1}..2^{n-1} - 1$.
+
+\vspace{10pt}
+\noindent Die zulässige Breite liegt im Bereich $1..64$. Eine vorzeichenbehaftete Ganzzahl mit jeder Breite im angegebenen Bereich ist ein eigener Datentyp. Ist die Breite nicht angegeben, wird als Breite $64$ angenommene, jedoch handelt es sich um einen eigenen Datentyp, der nicht mit dem Datentyp identisch ist, der eine explizite Breite von 64 Bit hat.
+
+\subsubsection{Zeichenketten $(strings)$}
+
+\noindent Zeichenketten \textit{(strings)} sind der einzige textuelle Datentyp. Eine Zeichenkette besteht aus einer Sequenz von beliebig vielen (möglicherweise keinen) ASCII-codierten Zeichen, wobei keine Steuerzeichen vorkommen dürfen. Dies entspricht dem Standard-Zeichensatz gemäß Retro-Frame Definition.
+
+\subsubsection{Felder $(arrays)$}
+
+\subsubsection{Strukturen $(structures)$}
+
+\subsection{Literale}
+
+\noindent Zahl, beginnend mit einer Ziffer ist unsigned int (dec, 0x... = hex, 0b... = bin). Mit vorangestelltem +/- Zeichen signed. In double quotes Zeichenketten (ASCII). Aktuell keine Fließkommazahlen.
+
+\subsection{Objekte}
+
+\noindent Ein \textit{Objekt} ist die allgemeinste Form...
+
+\subsection{Operatoren}
+
+\section{Referenz}
+
+\subsection{Schlüsselwörter}
+
+\noindent Schlüsselwörter sind Sprachelemente mit festgelegten Bedeutungen. SSE versucht, die Anzahl solcher Wörter gering zu halten, da diese nicht als frei verwendbare Bezeichner genutzt werden können. Dies gilt auch für abweichende Groß-/Kleinschreibung, so dass etwa Bezeichner in Kleinbuchstaben nicht erlaubt sind, wenn eine Umwandlung in Großbuchstaben ein Schlüsselwort ergeben würde.
+
+\subsubsection{CONST}
+
+\noindent Das Schlüsselwort \textbf{CONST} leitet die Definition einer Konstante, die auch eine Struktur oder ein Array sein kann, ein:
+
+\vspace{10pt}
+\indent \texttt{CONST$~declaration~initialization$}
+
+\vspace{10pt}
+\noindent Der Bezeichner sowie der Datentyp einer Konstanten wird grundsätzlich wie bei Variablen durch die Deklaration \textit{(declaration)} bestimmt. Im Gegensatz zu Variablen ist für eine Konstante immer eine Initialisierung \textit{(initialization)} erforderlich, die auch Zeichenketten \textit{(strings)} enthalten können, so dass dieser Datentyp als Konstante darstellbar ist (in diesem Fall ergibt sich der Datentyp ausnahmsweise erst während der Initialisierung).
+
+\vspace{10pt}
+\noindent Eine Konstante kann fast überall in einer SSE-Datei definiert werden und unmittelbar nach der Initialisierung verwendet werden. Der Geltungsbereich bzw. die Sichtbarkeit einer Konstante hängt dabei von der Stelle ab, an der die Definition erfolgt:
+
+\begin{itemize}
+	\item Konstanten, die außerhalb einer Komponente definiert werden, sind bis zum Ende der SSE-Datei sichtbar.
+	\item Konstanten, die im Attributsteil einer Komponente definiert werden, können bereits bei den Parametern genutzt werden und sind bis zum Ende der Spezifikation dieser Komponente sichtbar.
+	\item Konstanten, die im Definitionsteil einer Komponente definiert werden, sind ebenfalls bis zum Ende der Spezifikation dieser Komponente sichtbar.
+	\item Konstanten, die im Handler einer Komponente definiert werden, sind nur bis zum Ende der Handler-Spezifikation sichtbar.
+\end{itemize}
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{VAR}.
+
+\subsubsection{ELIF}
+
+\noindent Das Schlüsselwort \textbf{ELIF} ist optionaler Teil einer \textbf{IF} oder \textbf{SELECT} Anweisung.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{IF}, \textbf{SELECT}.
+
+\subsubsection{ELSE}
+
+\noindent Das Schlüsselwort \textbf{ELSE} ist optionaler Teil einer \textbf{IF} oder \textbf{SELECT} Anweisung.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{IF}, \textbf{SELECT}.
+
+\subsubsection{IF}
+
+\noindent Das Schlüsselwort \textbf{IF} leitet einen Block ein, der aus einer Bedingung in Form eines Ausdrucks \textit{(expression)} und einer bedingten Spezifikation besteht, wobei letztere nur dann angewendet wird, falls die Bedingung erfüllt ist. Eine Bedingung ist erfüllt, wenn der Ausdruck einen Wert ungleich 0 ergibt.
+
+\vspace{10pt}
+\noindent Nach einem IF-Block können optional eine oder mehrere weitere bedingte Blöcke über \textbf{ELIF} sowie ein optionaler abschließender, immer erfüllter Block über \textbf{ELSE} hinzugefügt werden, wobei jeder dieser Blöcke genau dann geprüft wird, wenn keine vorangegangene IF- oder ELIF-Bedingung erfüllt wurde:
+
+\vspace{10pt}
+\indent \texttt{IF~$(expression)$ \{ $specification$ \}}\\
+\indent \texttt{$[$~ELIF~$(expression)$ \{ $specification$ \}~$]*$}\\
+\indent \texttt{$[$~ELSE \{ $specification$ \}~$]$}
+
+\vspace{10pt}
+\noindent Eine bedingte Spezifikation kann neben Anweisungen auch andere Elemente beinhalten, jedoch nur, falls die zugehörige Bedingung ein konstanter Ausdruck \textit{(constant expression)} ist. Dadurch ist es z.B. möglich, im Definitionsteil einer Komponenten über eine IF-Anweisung bedingt Variablen zu definieren oder Komponenten zuzuordnen.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{ELIF}, \textbf{ELSE}, \textbf{SELECT}.
+
+\subsubsection{READ}
+
+\subsubsection{SELECT}
+
+\noindent Das Schlüsselwort \textbf{SELECT} leitet einen Block ein, der aus einem Ausdruck \textit{(expression)} und einer Reihe bedingter Spezifikation besteht, wobei letztere nur dann angewendet werden, falls der Ausdruck denselben Wert wie ein jeweils vorangestellter konstanter Ausdruck \textit{(constant expression)} hat.
+
+\vspace{10pt}
+\noindent Nach einem SELECT-Block können optional eine oder mehrere weitere bedingte Blöcke über \textbf{ELIF} sowie ein optionaler abschließender, immer erfüllter Block über \textbf{ELSE} hinzugefügt werden, wobei jeder dieser Blöcke genau dann geprüft wird, wenn keine vorangegangene SELECT- oder ELIF-Bedingung erfüllt wurde:
+
+\vspace{10pt}
+\indent \texttt{SELECT~$(expression)$\\
+\indent \{\\
+\indent $~~~[~\textbf{[}constant~expression\textbf{]}~specification~]*$\\
+\indent \}}\\
+\indent \texttt{$[$~ELIF~$(condition)$ \{ $specification$ \}~$]*$}\\
+\indent \texttt{$[$~ELSE \{ $specification$ \}~$]$}
+
+\vspace{10pt}
+\noindent Eine bedingte Spezifikation kann neben Anweisungen auch andere Elemente beinhalten, jedoch nur, falls die zugehörige Bedingung ein konstanter Ausdruck \textit{(constant expression)} ist. Dadurch ist es z.B. möglich, im Definitionsteil einer Komponenten über eine IF-Anweisung bedingt Variablen zu definieren oder Komponenten zuzuordnen.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{ELIF}, \textbf{ELSE}, \textbf{IF}.
+
+\subsubsection{VAR}
+
+\noindent Das Schlüsselwort \textbf{VAR} leitet die Definition einer Variablen, die auch eine Struktur oder ein Array sein kann, ein:
+
+\vspace{10pt}
+\indent \texttt{VAR$~declaration~[~initialization~]$}
+
+\vspace{10pt}
+\noindent Der Bezeichner sowie der Datentyp einer Variablen wird grundsätzlich wie bei Konstanten durch die Deklaration \textit{(declaration)} bestimmt. Im Gegensatz zu Konstanten ist für eine Variable eine Initialisierung \textit{(initialization)} optional, sofern die Variable nicht \textit{global} ist (siehe unten). Fehlt eine Initialisierung, ist der Wert der Variable zunächst unbestimmt, jedoch kann durch \textbf{\$VAR\_CLEAR} eine Initialisierung zur Laufzeit erfolgen. Es ist nicht möglich, Variablen vom Typ Zeichenkette \textit{(string)} zu definieren, d.h. Zeichenketten sind bei der Initialisierung einer Variablen nicht erlaubt.
+
+\vspace{10pt}
+\noindent Eine Variable kann an vielen Stellen in einer SSE-Datei definiert werden und unmittelbar nach der Deklaration verwendet werden. Der Geltungsbereich bzw. die Sichtbarkeit einer Variablen hängt dabei von der Stelle ab, an der die Definition erfolgt:
+
+\begin{itemize}
+	\item Variablen, die außerhalb einer Komponente definiert werden, werden als \textit{gobal} bezeichnet sind in allen nachfolgenden Komponenten bis zum Ende der SSE-Datei sichtbar. Für globale Variabeln ist immer eine Initialisierung erforderlich.
+	\item Variablen, die im Definitionsteil einer Komponente definiert werden, sind bis zum Ende der Spezifikation dieser Komponente sichtbar.
+	\item Variablen, die im Handler einer Komponente definiert werden, sind nur bis zum Ende der Handler-Spezifikation sichtbar.
+\end{itemize}
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{CONST}, \textbf{\$VAR\_CLEAR}.
+
+\subsubsection{WHILE}
+
+\subsubsection{WRITE}
+
+\subsection{Handler}
+\label{subsec:handlerref}
+
+\subsubsection{EVENT $bus$ $[pattern]$}
+
+\subsubsection{FETCH $pattern$ $[pattern]*$}
+
+\subsubsection{KEY PRESSED $pattern$}
+
+\subsubsection{KEY RELEASED $pattern$}
+
+\subsubsection{READ $bus$ $[pattern]$}
+
+\subsubsection{RESET}
+
+\subsubsection{TIMER $ID$}
+
+\subsubsection{WRITE $bus$ $[pattern]$}
+
+\subsection{Vordefinierte Makros}
+\label{subsec:predefinedmacrosref}
+
+\noindent Vordefinierte Makros beginnen immer mit einem Dollar-Zeichen \textbf{\$} und repräsentieren eingebaute Funktionen oder Variablen.
+
+\subsubsection{\$}
+
+\noindent Der Bezeichner \textbf{\$} referenziert eine Variable, welche mit 0 initialisiert und implizit benutzt wird, wenn über \textbf{\$FETCH/\textit{Adressbreite}}(\textit{Fetch-Bus}) die Ausführung von Instruktionen gestartet wird. In diesem Fall wird \textbf{\$} als Startadresse für das Laden von Instruktions-Worten über den Fetch-Bus verwendet. Wird ein passender Handler gefunden, erfolgt \textit{vor} Ausführung des Handlers eine implizite Erhöhung von \textbf{\$} um die Anzahl Pattern in der Handler-Bedingung (d.h. Instruktions-Worten). Somit entspricht \textbf{\$} dem \textit{Program Counter} bzw. \textit{Instruction Pointer}.
+
+\vspace{10pt}
+\noindent Die Variable kann gelesen und geschrieben werden. Sofern bei (impliziten oder expliziten) Änderungen von \textbf{\$} Bits jenseits der Adressbreite gesetzt sind, werden diese auf 0 zurückgesetzt (somit kann \textbf{\$} niemals einen Zahlenwert außerhalb der vorgegebenen Adressbreite annehmen, obwohl der Datentyp von \textbf{\$} keine festgelegte Breite hat).
+
+\vspace{10pt}
+\noindent Bleibt der Wert durch den Handler unverändert, wird nach Verlassen des Handlers das nächste Wort vom Fetch-Bus geladen. Wird er hingegen verändert, wird das Wort an der zugewiesenen Adresse vom Fetch-Bus geladen. Somit lassen sich etwa Sprünge sehr einfach ausdrücken (z.B. springt \texttt{\$~=~0x100} zur absoluten Adresse 100H, während \texttt{\$~-=~7} sieben Worte zurückspringt, wobei die zur aktuellen Instruktion gehörigen Worte zu berücksichtigen sind, d.h. \texttt{[FETCH 00000000]~-=~1.} erzeugt eine Endlosschleife).
+
+\subsubsection{\$BIN $[~/width~]$}
+
+\noindent Der Bezeichner \textbf{\$BIN} referenziert eine Funktion, die eine Liste von Ausdrücken \textit{(expressions)} in eine Zeichenkette mit binärer Darstellung der zusammengefügten Werte umwandelt:
+
+\vspace{10pt}
+\texttt{\$BIN$[/width](expression~[,~expression]*)$}
+
+\vspace{10pt}
+\noindent Mit Ausnahme des ersten Wertes müssen alle Zahlenwerte einen Datentyp mit einer festgelegten Breite haben. Alle Zahlenwerte werden in absteigender Wertigkeit bitweise hintereinander gepackt und das Resultat wird dann ausgewertet.
+
+\vspace{10pt}
+\noindent Ist nach dem Bezeichner \textbf{\$BIN} ein Breite \textit{(width)} angegeben, erfolgt die Ausgabe für die gesamte Breite, wobei bei Bedarf Teile des Resultats abgeschnitten und ggf. Nullen vorangestellt werden. Außerdem bestimmt der Datentyp des ersten Wertes, ob ein Vorzeichen ausgegeben wird: Handelt es sich um eine vorzeichenlose Ganzzahl \textit{(unsigned integer)}, wird kein Vorzeichen ausgegeben. Handelt es sich hingegen um eine vorzeichenbehaftete Ganzzahl \textit{(signed integer)}, wird stets ein Vorzeichen vorangestellt und der Absolutbetrag ausgegeben. All dies kann bei Bedarf z.B. durch explizite Typumwandlung des ersten Wertes gesteuert werden.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$DEC}, \textbf{\$HEX}.
+
+\subsubsection{\$CHAR\_IMAGE}
+
+\subsubsection{\$CHAR\_READ}
+
+\subsubsection{\$CHAR\_WRITE}
+
+\subsubsection{\$CYCLE\_FREQ}
+
+\subsubsection{\$CYCLES}
+
+\subsubsection{\$DEC $[~/width~]$}
+
+\noindent Der Bezeichner \textbf{\$DEC} referenziert eine Funktion, die eine Liste von Ausdrücken \textit{(expressions)} in eine Zeichenkette mit dezimaler Darstellung der zusammengefügten Werte umwandelt:
+
+\vspace{10pt}
+\texttt{\$DEC$[/width](expression~[,~expression]*)$}
+
+\vspace{10pt}
+\noindent Mit Ausnahme des ersten Wertes müssen alle Zahlenwerte einen Datentyp mit einer festgelegten Breite haben. Alle Zahlenwerte werden in absteigender Wertigkeit bitweise hintereinander gepackt und das Resultat wird dann ausgewertet.
+
+\vspace{10pt}
+\noindent Ist nach dem Bezeichner \textbf{\$DEC} ein Breite \textit{(width)} angegeben, erfolgt die Ausgabe für die gesamte Breite, wobei bei Bedarf Teile des Resultats abgeschnitten und ggf. Nullen vorangestellt werden. Außerdem bestimmt der Datentyp des ersten Wertes, ob ein Vorzeichen ausgegeben wird: Handelt es sich um eine vorzeichenlose Ganzzahl \textit{(unsigned integer)}, wird kein Vorzeichen ausgegeben. Handelt es sich hingegen um eine vorzeichenbehaftete Ganzzahl \textit{(signed integer)}, wird stets ein Vorzeichen vorangestellt und der Absolutbetrag ausgegeben. All dies kann bei Bedarf z.B. durch explizite Typumwandlung des ersten Wertes gesteuert werden.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$BIN}, \textbf{\$HEX}.
+
+\subsubsection{\$DISPLAY\_CHAR}
+
+\subsubsection{\$DISPLAY\_CLEAR}
+
+\subsubsection{\$DISPLAY\_MODE}
+
+\subsubsection{\$ERROR}
+
+\subsubsection{\$FETCH/$width$}
+
+\subsubsection{\$FLAGS}
+
+\subsubsection{\$HALT}
+
+\subsubsection{\$HEX $[~/width~]$}
+
+\noindent Der Bezeichner \textbf{\$HEX} referenziert eine Funktion, die eine Liste von Ausdrücken \textit{(expressions)} in eine Zeichenkette mit hexadezimaler Darstellung der zusammengefügten Werte umwandelt:
+
+\vspace{10pt}
+\texttt{\$HEX$[/width](expression~[,~expression]*)$}
+
+\vspace{10pt}
+\noindent Mit Ausnahme des ersten Wertes müssen alle Zahlenwerte einen Datentyp mit einer festgelegten Breite haben. Alle Zahlenwerte werden in absteigender Wertigkeit bitweise hintereinander gepackt und das Resultat wird dann ausgewertet.
+
+\vspace{10pt}
+\noindent Ist nach dem Bezeichner \textbf{\$HEX} ein Breite \textit{(width)} angegeben, erfolgt die Ausgabe für die gesamte Breite, wobei bei Bedarf Teile des Resultats abgeschnitten und ggf. Nullen vorangestellt werden. Außerdem bestimmt der Datentyp des ersten Wertes, ob ein Vorzeichen ausgegeben wird: Handelt es sich um eine vorzeichenlose Ganzzahl \textit{(unsigned integer)}, wird kein Vorzeichen ausgegeben. Handelt es sich hingegen um eine vorzeichenbehaftete Ganzzahl \textit{(signed integer)}, wird stets ein Vorzeichen vorangestellt und der Absolutbetrag ausgegeben. All dies kann bei Bedarf z.B. durch explizite Typumwandlung des ersten Wertes gesteuert werden.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$BIN}, \textbf{\$DEC}.
+
+\subsubsection{\$INSTANCE}
+
+\subsubsection{\$KEY}
+
+\subsubsection{\$KEY\_MODIFIER}
+
+\subsubsection{\$KEYBOARD\_IMAGE}
+
+\subsubsection{\$KEYBOARD\_MAP}
+
+\subsubsection{\$LOCK}
+
+\noindent Der Bezeichner \textbf{\$LOCK} referenziert ein Makro, welches den Bus für sämtliche anderweitigen Zugriffe sperrt (d.h. exklusiv für den Handler verfügbar macht):
+
+\vspace{10pt}
+\texttt{\$LOCK$(bus)$}
+
+\vspace{10pt}
+\noindent Falls der Bus bereits durch einen anderen Handler gesperrt ist, wartet \textbf{\$LOCK} so lange, bis der Bus frei ist. Der Bus kann explizit über \textbf{\$UNLOCK} wieder entsperrt werden. Ansonsten wird er nach Verlassen des Handlers automatisch wieder entsperrt.
+
+\vspace{10pt}
+\noindent \textbf{Achtung:} Ein Bus sollte nicht vor einem \textbf{\$OPCODE} oder \textbf{\$OPCODE\_INVALID} Makro platziert werden, weil ansonsten bei einem evtl. Debugging der Bus gesperrt bleibt, während die Ausführung unterbrochen wird.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$UNLOCK}.
+
+\subsubsection{\$OPCODE}
+
+\subsubsection{\$OPCODE\_INVALID}
+
+\subsubsection{\$OPCODE\_PREFIX}
+
+\subsubsection{\$OPERAND}
+
+\subsubsection{\$RAM/$width$}
+
+\subsubsection{\$REG\_BIN $[~/width~]$}
+
+\noindent Der Bezeichner \textbf{\$REG\_BIN} referenziert ein Makro, welches den zusammengefügten Wert einer Liste von Ausdrücken \textit{(expressions)} unter einer frei wählbaren Beschriftung \textit{(label)} als \textit{CPU-Register} deklariert:
+
+\vspace{10pt}
+\texttt{\$REG\_BIN$[/width](label,~expression~[,~expression]*)$}
+
+\vspace{10pt}
+\noindent Die Formatierung erfolgt standardmäßig analog zur Funktion \textbf{\$BIN}, ein Emulator kann jedoch eine alternative Darstellung wählen (z.B. vom Benutzer wählbar).
+
+\vspace{10pt}
+\noindent Das Makro ist nur im Definitionsteil einer Komponente definiert.
+
+Zu beachten ist, dass die Ausdrücke nicht einmalig während d
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$BIN}, \textbf{\$REG\_DEC}, \textbf{\$REG\_HEX}.
+
+\subsubsection{\$REG\_DEC $[~/width~]$}
+
+\noindent Der Bezeichner \textbf{\$REG\_DEC} referenziert ein Makro, welches einen Ausdruck \textit{(expression)} unter einer frei wählbaren Beschriftung \textit{(label)} als \textit{CPU-Register} deklariert:
+
+\vspace{10pt}
+\texttt{\$REG\_DEC$[/width](label,~expression)$}
+
+\subsubsection{\$REG\_GROUP}
+
+\noindent Der Bezeichner \textbf{\$REG\_GROUP} referenziert ein Makro, welches eine oder mehrere Registerdeklarationen mittels \textbf{\$REG} unter einer frei wählbaren Beschriftung \textit{(label)} als eine Gruppe von \textit{CPU-Registern} (z.B. Registerpaare) deklariert:
+
+\vspace{10pt}
+\texttt{\$REG\_GROUP$(label,~reg~[,~reg]*$)}
+
+\subsubsection{\$REG\_HEX $[~/width~]$}
+
+\noindent Der Bezeichner \textbf{\$REG\_HEX} referenziert ein Makro, welches einen Ausdruck \textit{(expression)} unter einer frei wählbaren Beschriftung \textit{(label)} als \textit{CPU-Register} deklariert:
+
+\vspace{10pt}
+\texttt{\$REG\_HEX$[/width](label,~expression)$}
+
+\vspace{10pt}
+\texttt{\$REG\_HEX\_ARRAY$[/width](label,~array)$}
+
+\subsubsection{\$REG\_VAR}
+
+\noindent Der Bezeichner \textbf{\$REG\_VAR} referenziert ein Makro, welches eine einzelne Variable \textit{(variable)}, die skalar oder zusammengesetzt sein kann, unter einer frei wählbaren Beschriftung \textit{(label)} als \textit{CPU-Register} deklariert:
+
+\vspace{10pt}
+\texttt{\$REG\_VAR$(label,~variable)$}
+
+\subsubsection{\$ROM\_CLEAR}
+
+\subsubsection{\$ROM/$width$}
+
+\subsubsection{\$ROM\_IMAGE}
+
+\subsubsection{\$SINGLE\_FETCH}
+
+\subsubsection{\$TIMER}
+
+\subsubsection{\$UNLOCK}
+
+\noindent Der Bezeichner \textbf{\$UNLOCK} referenziert ein Makro, welches einen über \textbf{\$LOCK} gesperrten Bus wieder freigibt:
+
+\vspace{10pt}
+\texttt{\$UNLOCK$(bus)$}
+
+\vspace{10pt}
+\noindent Falls der Bus nicht gesperrt war, hat \textbf{\$UNLOCK} keinen Effekt.
+
+\vspace{10pt}
+\noindent Siehe auch: \textbf{\$LOCK}.
+
+\subsubsection{\$VAR\_CLEAR}
+
+\noindent Der Bezeichner \textbf{\$VAR\_CLEAR} referenziert ein Makro, welches alle oder bestimmte Variablen auf den Wert 0 setzt:
+
+\vspace{10pt}
+\texttt{\$VAR\_CLEAR$[(variable~[,~variable]*)]$}
+
+\vspace{10pt}
+\noindent Wird keine Variable angegeben, wird \textbf{\$VAR\_CLEAR} auf alle im Definitionsteil festgelegten Variablen, andernfalls nur auf die angegebenen Variablen angewendet. Handelt es sich bei einer Variable um eine Struktur oder ein Feld, wird \textbf{\$VAR\_CLEAR} rekursiv auf sämtliche Elemente angewendet.
+
+\vspace{10pt}
+\noindent \textbf{\$VAR\_CLEAR} hat \textit{keinen} Effekt auf Variablen (\textbf{VAR}), die in Handlern definiert sind, Konstanten (\textbf{CONST}), \textbf{\$ROM} sowie \textbf{\$RAM}.
+
+\subsection{Vordefinierte Tags}
+
+\subsubsection{\#CPU}
+
+\noindent Das Tag \textbf{\#CPU} kennzeichnet eine CPU-Komponente \textit{(central processing unit)}. Eine CPU lädt üblicherweise mittels \textbf{\$FETCH} kontinuierlich Instruktionen von einem spezifizierten Bus, die von spezifizierten FETCH-Handlern ausgeführt werden.
+
+\vspace{10pt}
+\noindent Dem Emulator können mittels \textbf{\$COMMENT}, \textbf{\$OPERAND} und \textbf{\$OPCODE} Hinweise zur jeweiligen Instruktion gegeben werden. Darüber hinaus verfügt eine CPU in der Regel über Register, die mittels \textbf{\$COMMENT} und \textbf{\$REG\_*} im Definitionsteil spezifiziert werden können.
+
+\subsubsection{\#DISPLAY}
+
+\subsubsection{\#KEYBOARD}
+
+\subsubsection{\#PANEL}
+
+\subsubsection{\#RAM}
+
+\subsubsection{\#ROM}
+
+\subsubsection{\#SYSTEM}
+
+\subsubsection{\#TIMER}
+
+\end{document}

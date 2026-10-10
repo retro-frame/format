@@ -108,11 +108,11 @@ Currently, the following data format specification documents are provided:
 * `spec/rfdf-rfff.txt` provides the specification of the Retro-Frame Magic
   Prefix (5246 / "RFFF") format.
 
-* `spec/rfdf-rss.txt` provides the specification of the Retro System
-  Specification (RSS) format.
-
 * `spec/rfdf-rvee2b.txt` provides the specification of the Retro Virtual
   Execution Environment #2 Binary (EE2B) format.
+
+* `spec/rfdf-sse.txt` provides the specification of the System Specification
+  for Emulation (SSE) format.
 
 * `spec/rfdf-sym.txt` provides the specification of the Symbol Table ("SYM")
   format.
