@@ -13,8 +13,8 @@ PCS - Packed Character String Text (5043)
 
 Repository:  <http://source.retro-frame.net/format>
 File:        /spec/rfdf-pcs.txt//
-Version:     01.00!01
-Compliance:  Retro-Frame 1.0
+Version:     01.00.00
+Compliance:  Retro-Frame 1.1
 License:     MIT
 
 Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
@@ -43,9 +43,9 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-02-16 : 01.00!00 : Ingo
+2026-10-17 : 01.00.00: Ingo
 
-  Draft.
+  Initial version.
 
 
 Contents
@@ -116,11 +116,13 @@ file and not in a text stream) and the character encoding is fixed. Unlike the
 Unspecified Text data format (see /spec/rfdf-text.txt), the text stream must
 represent a text data format and thus start with a text data format identifier.
 
-Note that although the format identifier appears as "PCS?" the ASCII domain,
+Note that although the format identifier appears as "PCS:" the ASCII domain,
 PCS is a binary data format (if it was a text data format, a solidus '/' would
-be required after "PCS"). In a file, the ASCII encoding of "RFFFPCS?" would be
-a valid header to represent a text data format in PCS encoding in a binary
-stream.
+be required after "PCS"). If ASCII-CP character encoding is used, "RFFFPCS:"
+appears as the header of a PCS file and the PCS-encoded characters appear as
+ASCII-CP encoded characters which would be identical if only ASCII characters
+are used.
+
 
 
 3. BINARY DATA FORMAT
@@ -134,7 +136,7 @@ PCS is an optionally self-delimiting binary format.
 
 If self-delimited, the value 0xFF represents the end of the text stream.
 
-The only valid format version is 53:3F.
+The only valid format version is 53:3A.
 
 
 3.2 Syntax of version 53:3F
@@ -144,7 +146,7 @@ PCS_IDENTIFIER format:
 
    2 BYTES  FORMAT_TYPE           : UINT-16BE = 5043
    1 BYTE   FORMAT_VERSION_MAJOR  : UINT-8 = 0x53
-   1 BYTE   FORMAT_VERSION_MINOR  : UINT-8 = 0x3F
+   1 BYTE   FORMAT_VERSION_MINOR  : UINT-8 = 0x3A
 
 PCS_TEXT_FORMAT:
 

@@ -13,8 +13,8 @@ AEDC - Asymmetrically Encrypted Data Collection (AEDC)
 
 Repository:  <http://source.retro-frame.net/format>
 File:        /spec/rfdf-aedc.txt//
-Version:     01.00!01
-Compliance:  Retro-Frame 1.0
+Version:     01.00.00
+Compliance:  Retro-Frame 1.1
 License:     MIT
 
 Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
@@ -43,9 +43,9 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-03-28 : 01.00!01 : Ingo
+2026-10-17 : 01.00.00: Ingo
 
-  Draft.
+  Initial version.
 
 
 Contents
@@ -103,9 +103,18 @@ Encrypted Data Collection (AEDC) format.
 [COMMON DOCUMENTATION]
 Retro-Frame Common Documentation, see <http://source.retro-frame.net/common>.
 
+[BUCHMANN]
+Johannes Buchmann: Einführung in die Kryptographie, 6. Auflage, Springer-Verlag
+2016.
+
 [DEFLATE]
 RFC: 1951 - DEFLATE Compressed Data Format Specification version 1.3, see
 <https://datatracker.ietf.org/doc/html/rfc1951>.
+
+[FIPS 203]
+National Institute of Standards and Technology: Federal Information Processing
+Standards Publication 203 - Module-Lattice-Based Key-Encapsulation Mechanism
+Standard, August 2024, see <https://doi.org/10.6028/NIST.FIPS.203>.
 
 [RETRO-FRAME]
 Retro-Frame homepage, see <http://source.retro-frame.net/>.
@@ -121,6 +130,10 @@ symmetric key encryption respective message authentication, the secret key
 material for each session is generated randomly and stored using public key
 cryptography. Thus, no secret (except from the session-related material) is
 required in order to protect the data.
+
+The public key cryptography is a combination of the old-fashioned (i.e. retro)
+Diffie-Hellman-based key exchange and the modern quantum-resistant standard
+ML-KEM (see [FIPS 203]). Such combinations are also called hybrid key exchange.
 
 Within a session, an unlimited number of compressed, authenticated and
 encrypted Retro-Frame DATA FORMAT streams may be stored.
@@ -467,7 +480,12 @@ considered strong but not quantum-safe.
 In particular, the Diffie-Hellman algorithm may become insecure when quantum
 computers with the required number of Q-bits and reliability (considering error
 correction) for solving the discrete logarithm problem (DLP) up to a 2048 bit
-modulus become available.
+modulus become available. Note that in this case, each encrypted file using
+AEDC of major version 00 can be decrypted instantly.
 
 Thus, if long-term security is required, a data format which provides quantum-
-safe cryptography should be considered.
+safe cryptography should be considered. It is planned to specify ML-KEM (see
+[FIPS 203]) and possibly other post-quantum cryptography for AEDC from major
+version 01 although the concept of AEDC cannot comply to the requirement of
+all Key Encapsulation Mechanisms (KEM) the encapsulation algorithm to be
+probabilistic.

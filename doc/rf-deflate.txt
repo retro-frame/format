@@ -13,8 +13,8 @@ Deflate Data Format Description
 
 Repository:  <http://source.retro-frame.net/format>
 File:        /doc/rf-deflate.txt//
-Version:     01.00!01
-Compliance:  Retro-Frame 1.0
+Version:     01.00.00
+Compliance:  Retro-Frame 1.1
 License:     MIT
 
 Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
@@ -43,9 +43,9 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-03-28 : 01.00!01 : Ingo
+2026-10-17 : 01.00.00 : Ingo
 
-  Draft.
+  Initial version.
 
 
 Contents

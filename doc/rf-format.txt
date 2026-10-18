@@ -13,8 +13,8 @@ General Documentation
 
 Repository:  <http://source.retro-frame.net/format>
 File:        /doc/rf-format.txt
-Version:     01.00!02
-Compliance:  Retro-Frame 1.0
+Version:     01.00.00
+Compliance:  Retro-Frame 1.1
 License:     MIT
 
 Copyright (c) 2026 Ingo Boehmer <ingo@retro-leisure.net>
@@ -43,9 +43,9 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-09-12 : 01.00!02 : Ingo
+2026-10-17 : 01.00.00 : Ingo
 
-  Draft.
+  Initial version.
 
 
 Contents
@@ -295,9 +295,9 @@ Thus, the entire format identifier of a binary format consists of 4 bytes.
   ----  ----------  -----------------------------------------------------------
   0000  n/a         Reserved for text data formats in UTF-32BE encoding with a
                     BOM
-  0001  BIN         Unspecified Binary
   2FXX  n/a         Reserved for the text data format Magix Prefix in the ASCII
                     domain ("RFFF/")
+  4249  BIN         Unspecified Binary
   4350  CP          Codepage
   5043  PCS         Packed Character String Text
   5246  RFFF        Magic Prefix
@@ -348,7 +348,7 @@ format version but invalid (e.g. "1.111").
   "RDEFLATE"  RDEFLATE    Raw Deflate Encoding
   "RFFF"      RFFF        Magic Prefix
   "SSE"       SSE         System Specifications for Emulation
-  "SYM"       SYM         Symbol Table (mapping of values to symbolic names)
+  "SYM"       SYMTAB      Symbol Table (mapping of values to symbolic names)
   "TEXT"      TEXT        Unspecified Text
 
 
@@ -504,17 +504,17 @@ any filter. When the file name is provided as a string (e.g. by a command line
 argument), the program may append the extension implicitly if the file name
 does not have an extension (i.e. the file name does not contain a period '.').
 
-  Standard     Short   Format name
-  -----------  ------  -----------
-  ".asm"       ".ASM"  ASM
-  ".bin"       ".BIN"  BIN
-  ".CP"        ".CP"   CP
-  ".CPC"       ".CPC"  CPCODE
-  ".CPS"       ".CPS"  CPSPEC
-  ".pcs"       ".PCS"  PCS
-  ".rdeflate"  ".RDF"  RDEFLATE
-  ".rff"       ".RFF"  RFFF
-  ".sse"       ".SSE"  SSE
-  ".symtab"    ".SYM"  SYM
-  ".txt"       ".TXT"  TEXT
-  ".rvee2b"    ".EE2"  RVEE2B
+  Standard     Short   Binary format  Text format    Format name
+  -----------  ------  -------------  -------------  -----------
+  ".asm"       ".ASM"  no             yes            ASM
+  ".bin"       ".BIN"  yes            no             BIN
+  ".CP"        ".CP"   yes            no             CP
+  ".CPC"       ".CPC"  no             yes            CPCODE
+  ".CPS"       ".CPS"  no             yes            CPSPEC
+  ".pcs"       ".PCS"  yes            no             PCS
+  ".rdeflate"  ".RDF"  no             yes            RDEFLATE
+  ".rff"       ".RFF"  yes            yes            RFFF
+  ".rvee2b"    ".EE2"  yes            no             RVEE2B
+  ".sse"       ".SSE"  no             yes            SSE
+  ".symtab"    ".SYM"  no             yes            SYMTAB
+  ".txt"       ".TXT"  no             yes            TEXT

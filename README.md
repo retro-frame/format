@@ -3,7 +3,7 @@
 **Endeavor: Retro-Frame**  
 **Repository: \<[http://source.retro-frame.net/format](http://source.retro-frame.net/format)\>**  
 **Version: 1.0!2 (dev)**  
-**Compliance: Retro-Frame 1.0**  
+**Compliance: Retro-Frame 1.1**  
 **License: MIT (see `LICENSE`)**  
 
 Copyright (c) 2026 Ingo Boehmer \<ingo@retro-leisure.net\>
@@ -63,6 +63,10 @@ and suffixed by `.txt`:
 * `doc/rf-format.txt` provides a list of all Retro-Frame (i.e. internal) data
   formats as well as general data format specifications and guidelines.
 
+* `doc/SSE_manual_de.tex` is the German version of a manual that describes
+  the System Specification for Emulation (SSE) format in more detail than the
+  specification document.
+
 Currently, descriptions of the following external (e.g. standardized or
 vendor-specific) data formats are provided:
 
@@ -102,7 +106,7 @@ Currently, the following data format specification documents are provided:
 * `spec/rfdf-pcs.txt` provides the specification of the Packed Character String
   Text (5043) format.
 
-* `spec/rfdf-rfdf-rdeflate.txt` provides the specification of the Raw Deflate
+* `spec/rfdf-rdeflate.txt` provides the specification of the Raw Deflate
   Encoding ("RDEFLATE") format.
 
 * `spec/rfdf-rfff.txt` provides the specification of the Retro-Frame Magic
