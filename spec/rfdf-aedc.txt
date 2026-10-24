@@ -43,7 +43,7 @@ SOFTWARE.
 Change history
 -------------------------------------------------------------------------------
 
-2026-10-17 : 01.00.00: Ingo
+2026-10-24 : 01.00.00: Ingo
 
   Initial version.
 
@@ -125,31 +125,73 @@ Retro-Frame homepage, see <http://source.retro-frame.net/>.
 ===============================================================================
 
 The Asymmetrically Encrypted Data Collection (AEDC) format is intended to
-protect collected data in insecure environments. While using efficient
-symmetric key encryption respective message authentication, the secret key
-material for each session is generated randomly and stored using public key
-cryptography. Thus, no secret (except from the session-related material) is
-required in order to protect the data.
+protect collected data in potentially insecure environments. While using
+efficient symmetric key encryption respective message authentication, the
+secret key material for each session is generated randomly and stored (i.e.
+exchanged) using public key cryptography. Thus, no secret (except from the
+session-related material) is required in order to protect the data.
 
-The public key cryptography is a combination of the old-fashioned (i.e. retro)
-Diffie-Hellman-based key exchange and the modern quantum-resistant standard
-ML-KEM (see [FIPS 203]). Such combinations are also called hybrid key exchange.
+The core public key algorithm chosen is an old-fashioned (i.e. retro) Diffie-
+Hellman-based key exchange. This algorithm provides special fun in a way that
+it is possible to dynamically alter the public key (without using the private
+key) in a way which diguises any relation to the previous public key(s) while
+decryption is still straightforward using the original private key.
 
-Within a session, an unlimited number of compressed, authenticated and
-encrypted Retro-Frame DATA FORMAT streams may be stored.
+However, while this algorithm is pure, retro and fun, it is considered insecure
+when quantum computers with sufficident capabilities (i.e. the required number
+of Q-bits and reliability) for solving the discrete logarithm problem up to a
+2048 bit modulus become available. Note that in this case, the private (i.e.
+secret) Diffie-Hellman key can be derived from the corresponding public key
+material instantly.
+
+Considering this, AEDC specifies three different modes:
+
+- In standard mode, a combination of the Diffie-Hellman-based key exchange and
+  the modern (hopefully) quantum-resistant standard ML-KEM according to [FIPS
+  203] is used to encrypt the random session key. Such a combination is also
+  called a hybrid key exchange. The encryption remains seure as long at least
+  one of the methods has not been broken (however, consider that breaking one
+  of the methods does not become harder due to the combination).
+
+- In stealth mode, only the Diffie-Hellman-based key exchange is used. As a
+  consequence, encryption of this mode may be broken using a sufficient quantum
+  computer. On the other hand, this mode provides a feature to alter the public
+  key material (called "re-noncing") in a way which leaves all data of an AEDC
+  stream which has already been encrypted as well as all data which is will be
+  encrypted later decryptable using the same private key while no relation
+  between the public keys can be proven unless the key is broken. Note that the
+  stealth mode deliberately violates the standard header format of Retro-Frame
+  data formats as the format should appear as random bytes.
+
+- In obfuscated mode, the same keys are used like in standard mode but while
+  the Diffied-Hellman-based keys are re-nonced like in stealth mode (and again,
+  this mode does not comply with the standard header format of Retro-Frame data
+  formats), a reversible method is used to obfuscate the ML-KEM public key by
+  using a data format not compatible to [FIPS 203].
+
+As a second feature, AEDC provides password-based asymmetric cryptography (i.e.
+if a password is used, no key files need to be maintained). While possible in
+general (although not widely used), the two chosen algorithms are particularly
+agnostic regarding the choice of the secret from which the public/private key
+pairs are derived (in both cases, a 512-bit pseudo-random value is used for the
+key generation, which may easily be derived from a password using as password-
+based key derivation function: for Diffie-Hellman, a bit of value "1" will be
+prepended to form a 513 bit exponent as the private key using a fixed generator
+value and modulus to calculate the public key, while for ML-KEM 512 bits are
+used for the both initial 256-bit "random" values d and z according to [FIPS
+203], using d as a seed of several SHA3-based pseudo-random number generators
+in order to derive the actual key pair).
 
 The public key material is stored in the format header. For each such header,
-up to 16 keys (called the 'RECEIVER KEYS') may be assigned.
+up to 16 keys (called the 'RECEIVER KEYS') may be assigned. Within a session,
+an unlimited number of compressed, authenticated and encrypted Retro-Frame DATA
+FORMAT streams may be stored.
 
-Decryption may be performed in a secure environment using a secret key (i.e. a
-private key or a password) matching one of the receiver keys. Given the secret
+Decryption may be performed in a secure environment using a private key (i.e. a
+private key or a password) matching one of the receiver keys. Given the private
 key of one receiver, the corresponding (concealed) public key can be looked up
-in the format header. By doing this, the secret key is implicitly validated and
-the index of the receiver key can be determined without using any session data.
-
-As a special variant, an obfuscated format is specified which deliberately
-violates compliance to the Retro-Frame DATA FORMAT specifications in order to
-keep an AECD file stealthy.
+in the format header. Thus, the index of the receiver key can be determined
+without using any session data or using other public keys.
 
 
 
